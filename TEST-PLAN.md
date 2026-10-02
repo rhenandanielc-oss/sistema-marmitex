@@ -13,7 +13,7 @@ Objetivo: garantir que cadastros, lançamentos, autenticação e, principalmente
 | Unitário backend | pytest | `financial_engine`, `periods`, validadores (CNPJ, CPF, dinheiro) | não usa |
 | Integração backend | pytest + TestClient | rotas da API + serviços + repositórios + migrations | PostgreSQL de teste |
 | Migrations | pytest / script | `upgrade head` → `downgrade base` → `upgrade head` | PostgreSQL de teste |
-| Unitário frontend | Vitest + Testing Library | componentes, formatação pt-BR, formulários, rotas protegidas | API simulada (MSW) |
+| Unitário frontend | Vitest + Testing Library | componentes, formatação pt-BR, formulários, rotas protegidas | API simulada (mock de `fetch`, `src/test/utils.tsx`) |
 | E2E | Playwright | fluxos principais no navegador | stack completa via Docker Compose |
 
 Banco de teste: banco `marmitex_test` separado; migrations aplicadas uma vez por sessão; cada teste roda em transação revertida ao final. Relógio do negócio fixado via `core/clock.py` (hoje = 2026-09-30, quarta-feira) para testes determinísticos.
@@ -29,7 +29,9 @@ cd backend && ruff check . && mypy app
 # frontend
 cd frontend && npm run test               # Vitest
 cd frontend && npm run lint && npm run typecheck
-cd frontend && npm run e2e                # Playwright
+cd frontend && npm run e2e                # Playwright (backend + `npm run preview` rodando)
+# variáveis do E2E: E2E_BASE_URL (padrão http://localhost:4173), E2E_EMAIL, E2E_PASSWORD,
+# PLAYWRIGHT_CHROMIUM_PATH (opcional, caminho de um Chromium já instalado)
 ```
 
 Meta de cobertura: ≥ 90% em `financial_engine.py` e `periods.py` (100% dos ramos de divisão por zero); ≥ 80% no backend como um todo.

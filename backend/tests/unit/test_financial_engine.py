@@ -158,6 +158,7 @@ def test_daily_series_reference():  # FIN-19 / FIN-28
     assert series[4].net_profit == D("-300.00")  # dia do aluguel: negativo é esperado (R-CUS-5)
     assert series[-1].cumulative_costs == D("733.33")
     assert series[-1].cumulative_net_profit == D("801.67")
+    assert series[-1].cumulative_revenue == D("1535.00")
     assert sum((d.revenue for d in series), fe.ZERO) == D("1535.00")
 
 
@@ -201,6 +202,7 @@ def test_properties(sales, costs):  # teste de propriedade (TEST-PLAN.md seção
     assert sum((d.fixed_costs for d in series), fe.ZERO) == s.fixed_costs
     assert series[-1].cumulative_costs == s.total_costs
     assert series[-1].cumulative_net_profit == s.net_profit
+    assert series[-1].cumulative_revenue == s.revenue
     breakdown = fe.revenue_breakdown([fe.BuyerTotals(k[0], k[1], str(k), v) for k, v in buyers.items()])
     assert breakdown.revenue == s.revenue
     assert sum((i.revenue for i in breakdown.items), fe.ZERO) == s.revenue

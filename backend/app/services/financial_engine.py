@@ -127,6 +127,7 @@ def summarize(sales_by_type: dict[str, SalesTotals], costs: CostTotals) -> Finan
 class DayResult:
     date: date
     revenue: Decimal
+    cumulative_revenue: Decimal
     quantity: int
     sales_count: int
     daily_costs: Decimal
@@ -142,16 +143,19 @@ def daily_series(days: Sequence[date], sales: dict[date, SalesTotals],
                  costs: dict[date, CostTotals]) -> list[DayResult]:
     """R-IND-4: fórmulas aplicadas a cada dia; dias sem movimento = 0. Inclui acumulados (R-CUS-7)."""
     result = []
+    cumulative_revenue = ZERO
     cumulative_costs = ZERO
     cumulative_profit = ZERO
     for day in days:
         s = sales.get(day, SalesTotals())
         c = costs.get(day, CostTotals())
         profit = s.revenue - c.total
+        cumulative_revenue += s.revenue
         cumulative_costs += c.total
         cumulative_profit += profit
         result.append(DayResult(
-            date=day, revenue=s.revenue, quantity=s.quantity, sales_count=s.sales_count,
+            date=day, revenue=s.revenue, cumulative_revenue=cumulative_revenue, quantity=s.quantity,
+            sales_count=s.sales_count,
             daily_costs=c.daily, fixed_costs=c.fixed, total_costs=c.total, cumulative_costs=cumulative_costs,
             net_profit=profit, cumulative_net_profit=cumulative_profit,
             average_cost_per_meal=_divide(c.total, s.quantity),

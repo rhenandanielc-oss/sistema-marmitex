@@ -125,8 +125,9 @@ def by_buyer(admin: AdminUser, db: DbSession, period: PeriodDep, buyer_type: Buy
 
 @dashboard.get("/sales-by-company-daily", response_model=SalesByCompanyDailyOut,
                summary="Histórico diário de vendas por empresa")
-def sales_by_company_daily(admin: AdminUser, db: DbSession, period: PeriodDep) -> SalesByCompanyDailyOut:
-    series = fs.sales_by_company_daily(db, period)
+def sales_by_company_daily(admin: AdminUser, db: DbSession, period: PeriodDep,
+                           top: Annotated[int, Query(ge=1, le=10)] = 10) -> SalesByCompanyDailyOut:
+    series = fs.sales_by_company_daily(db, period, top=top)
     return SalesByCompanyDailyOut(
         period=_period_out(period),
         companies=[Ref(id=cid, name=name) for cid, name in series.companies],

@@ -54,7 +54,7 @@ Princípios:
 | Token | JWT HS256 (`PyJWT`) vinculado a sessão no banco | permite logout/revogação |
 | Banco | PostgreSQL 16 | |
 | Testes backend | pytest, httpx/TestClient, PostgreSQL real | não usar SQLite (semântica de `NUMERIC`/datas difere) |
-| Testes frontend | Vitest, Testing Library, Playwright (E2E) | |
+| Testes frontend | Vitest, Testing Library (API simulada com mock de `fetch`), Playwright (E2E) | |
 | Qualidade | ruff, mypy, ESLint, `tsc --noEmit` | |
 | Infra | Docker, Docker Compose | |
 
@@ -101,21 +101,26 @@ sistema-marmitex/
 │       ├── unit/                 # motor financeiro, períodos, validadores
 │       └── integration/          # API + PostgreSQL
 └── frontend/
-    ├── Dockerfile
+    ├── Dockerfile                # build Vite + Nginx (porta 8080, encaminha /api ao backend)
+    ├── nginx.conf
     ├── package.json
-    ├── vite.config.ts
+    ├── vite.config.ts            # proxy /api em dev/preview; configuração do Vitest
+    ├── playwright.config.ts
+    ├── e2e/                      # testes de ponta a ponta (Playwright)
     └── src/
         ├── main.tsx
-        ├── app/                  # providers, router, layout
-        ├── api/                  # cliente HTTP, tipos da API, hooks React Query
-        ├── auth/                 # contexto de sessão, rota protegida
-        ├── components/           # UI compartilhada (tabela, paginação, filtros, KPI, gráfico)
+        ├── app/                  # App (providers, rotas), Layout (menu), LoginPage
+        ├── api/                  # client.ts (fetch + token + erros), types.ts, hooks.ts (listas de seleção)
+        ├── auth/                 # AuthContext (sessão), RequireAuth (rota protegida)
+        ├── components/           # ui.tsx, Toast, Kpi, charts.tsx (Recharts + "Ver tabela")
         ├── features/
-        │   ├── companies/  customers/  categories/
+        │   ├── registry.ts       # hooks comuns de cadastros
+        │   ├── companies/  customers/  categories/  users/
         │   ├── sales/  costs/
         │   ├── history/
-        │   └── dashboard/
-        └── lib/                  # formatação pt-BR (moeda, data), utilitários
+        │   └── dashboard/        # DashboardPage, BuyerDashboard, PeriodFilter
+        ├── lib/                  # format.ts (pt-BR), money.ts, forms.ts
+        └── test/                 # setup e utilitários de teste
 ```
 
 ---
@@ -191,6 +196,9 @@ Somas e agrupamentos são feitos em SQL (eficiente, com índices). As fórmulas 
 ### D-11 — Uso em 1 a 2 notebooks
 O sistema será usado em no máximo dois notebooks. Implantação alvo: um notebook "servidor" executa `docker compose` (PostgreSQL + backend + frontend servido por Nginx); o segundo notebook, se houver, acessa pelo navegador via rede local (`http://<ip-do-servidor>:8080`). Consequências: sem balanceamento, cache distribuído ou filas; limite de tentativas de login em memória; backup diário com `pg_dump` para pasta local + cópia externa (pendrive/nuvem) documentada na Fase 5.
 
+### D-12 — Gráficos
+Recharts. Paleta categórica de 8 cores em ordem fixa, validada para daltonismo (script `validate_palette.js` da skill de visualização): receita = azul, custos = laranja (diários) / violeta (fixos), lucro = verde-água, negativo = vermelho. Nunca dois eixos Y no mesmo gráfico; máximo de 8 séries (demais agrupadas em "Outras"). Como três cores têm contraste < 3:1 sobre o fundo, todo gráfico tem o botão **"Ver tabela"**.
+
 ### D-10 — Testes de integração com PostgreSQL real
 Os testes de integração usam um PostgreSQL de teste (serviço do Docker Compose ou do CI), com migrations aplicadas e transação revertida por teste.
 
@@ -211,7 +219,8 @@ Os testes de integração usam um PostgreSQL de teste (serviço do Docker Compos
 | `/lancamentos/vendas` | Lançar/listar vendas (data escolhida pelo ADMIN, padrão hoje) | ADMIN |
 | `/lancamentos/custos` | Lançar/listar custos do restaurante | ADMIN |
 | `/historico` | Consulta de vendas e custos | ADMIN |
-| `/dashboard` | Dashboard geral, por empresa (`?empresa=<id>`) e por cliente (`?cliente=<id>`) | ADMIN |
+| `/dashboard` | Dashboard geral, por empresa (`?empresa=<id>`) e por cliente (`?cliente=<id>`); período na URL (`?periodo=today\|week\|month\|last_month\|custom&inicio=&fim=`) | ADMIN |
+| `/usuarios` | Usuários ADMIN (cadastrar, desativar, redefinir senha, alterar a própria senha) | ADMIN |
 
 * Todas as rotas, exceto `/login`, exigem sessão válida; a proteção real é sempre feita pela API.
 * No lançamento de venda, o ADMIN escolhe primeiro o tipo de comprador (**Empresa** ou **Cliente avulso**) e depois o comprador.

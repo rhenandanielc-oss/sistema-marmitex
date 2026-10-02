@@ -78,12 +78,14 @@ def test_daily(api, ref):  # FIN-19 / FIN-28
     body = api.ok(api.get("/dashboard/daily"))
     items = body["items"]
     assert len(items) == 30
-    assert items[0] == {"date": "2026-09-01", "revenue": "740.00", "quantity": 40, "sales_count": 1,
+    assert items[0] == {"date": "2026-09-01", "revenue": "740.00", "cumulative_revenue": "740.00",
+                        "quantity": 40, "sales_count": 1,
                         "daily_costs": "400.00", "fixed_costs": "0.00", "total_costs": "400.00",
                         "cumulative_costs": "400.00", "net_profit": "340.00", "cumulative_net_profit": "340.00",
                         "average_cost_per_meal": "10.00"}
     assert items[1]["revenue"] == "0.00" and items[1]["average_cost_per_meal"] is None
     assert items[4]["net_profit"] == "-300.00"
+    assert items[-1]["cumulative_revenue"] == "1535.00"
     assert items[-1]["cumulative_costs"] == "733.33"
     assert items[-1]["cumulative_net_profit"] == "801.67"
 
@@ -142,6 +144,11 @@ def test_sales_by_company_daily_top_10(api):
     day = next(i for i in body["items"] if i["date"] == "2026-09-10")
     assert day["other_companies"] == "30.00"  # as duas menores: 1 + 2 marmitas × 10,00
     assert sum(float(v) for v in day["values"].values()) + float(day["other_companies"]) == 780.0
+    top6 = api.ok(api.get("/dashboard/sales-by-company-daily", params={"top": 6}))
+    assert len(top6["companies"]) == 6
+    day6 = next(i for i in top6["items"] if i["date"] == "2026-09-10")
+    assert day6["other_companies"] == "210.00"  # 1+2+...+6 marmitas × 10,00
+    assert api.get("/dashboard/sales-by-company-daily", params={"top": 11}).status_code == 422
 
 
 def test_company_dashboard(api, ref):  # DSH-02

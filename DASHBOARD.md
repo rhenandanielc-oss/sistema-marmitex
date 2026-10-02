@@ -73,12 +73,10 @@ Tabela + gráfico de barras com o **faturamento** de cada empresa e de cada clie
 | Receita diária | barras | `/dashboard/daily` → `revenue` |
 | Quantidade diária de marmitas | barras | `/dashboard/daily` → `quantity` |
 | Receita por empresa | barras horizontais (ordenadas desc.) + % de participação | `/dashboard/by-buyer` |
-| Receita total (acumulada no período) | linha acumulada | `/dashboard/daily` → `revenue`, acumulada **apenas para desenho** (a soma final é igual a `summary.revenue`, garantido pela R-IND-5) |
+| Acumulado no período | três linhas no mesmo eixo (R$): receita, custos e lucro acumulados | `/dashboard/daily` → `cumulative_revenue`, `cumulative_costs`, `cumulative_net_profit` (calculados no backend) |
 | Custos diários | barras empilhadas (diário × fixo) | `/dashboard/daily` → `daily_costs`, `fixed_costs` |
-| **Custos acumulados** | linha que sobe a cada custo registrado | `/dashboard/daily` → `cumulative_costs` (calculado no backend) |
 | Lucro diário | barras (verde ≥ 0, vermelho < 0) | `/dashboard/daily` → `net_profit` |
-| Lucro acumulado no mês | linha (evolução até o lucro final do mês) | `/dashboard/daily` → `cumulative_net_profit` |
-| Histórico de vendas por empresa | linhas, uma por empresa (top 10 + "Outras empresas" + "Clientes avulsos") | `/dashboard/sales-by-company-daily` |
+| Histórico de vendas por empresa | barras empilhadas por dia: 6 maiores empresas + "Outras empresas" + "Clientes avulsos" (máximo de 8 cores) | `/dashboard/sales-by-company-daily?top=6` |
 
 Regras de apresentação:
 
@@ -86,7 +84,9 @@ Regras de apresentação:
 * Tooltip com valor formatado em R$ e data `dd/mm/aaaa`.
 * Períodos longos (> 62 dias): rótulos do eixo X espaçados automaticamente.
 * Estado vazio: "Nenhum lançamento no período" em vez de gráfico em branco.
-* Cores consistentes: receita (azul), custos (laranja/âmbar), lucro (verde/vermelho), quantidade (cinza-azulado).
+* Cores fixas (paleta validada para daltonismo — `ARCHITECTURE.md` D-12): receita e quantidade azul, custos diários laranja, custos fixos violeta, lucro acumulado verde-água; lucro diário azul quando ≥ 0 e vermelho quando < 0.
+* Todo gráfico tem **"Ver tabela"** com os mesmos valores (acessibilidade e conferência).
+* Nunca dois eixos Y no mesmo gráfico; quantidade e receita ficam em gráficos separados.
 
 ---
 

@@ -299,7 +299,7 @@ Parâmetros comuns de período: `period` (`today` \| `week` \| `month` \| `last_
 {
   "period": { ... },
   "items": [
-    { "date": "2026-09-01", "revenue": "740.00", "quantity": 40, "daily_costs": "400.00",
+    { "date": "2026-09-01", "revenue": "740.00", "cumulative_revenue": "740.00", "quantity": 40, "daily_costs": "400.00",
       "fixed_costs": "0.00", "total_costs": "400.00", "cumulative_costs": "400.00", "net_profit": "340.00",
       "cumulative_net_profit": "340.00", "average_cost_per_meal": "10.00" }
   ]
@@ -329,7 +329,7 @@ Parâmetros comuns de período: `period` (`today` \| `week` \| `month` \| `last_
 
 `revenue_share_percent` = receita do comprador ÷ receita total × 100, arredondado; `null` se a receita total for zero.
 
-`GET /dashboard/sales-by-company-daily` — as 10 empresas de maior receita no período, mais "Outras empresas" e "Clientes avulsos", com todos os dias do período:
+`GET /dashboard/sales-by-company-daily` — parâmetro `top` (1–10, padrão 10): as N empresas de maior receita no período, mais "Outras empresas" e "Clientes avulsos", com todos os dias do período:
 
 ```json
 {

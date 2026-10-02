@@ -10,15 +10,15 @@ O Claude Code deve atualizá-lo ao final de cada etapa significativa.
 
 # STATUS GERAL
 
-**Status:** EM ANDAMENTO
+**Status:** EM ANDAMENTO — falta somente a Fase 5
 
-**Fase atual:** Fases 0, 1, 2 e 3 CONCLUÍDAS (backend completo). Próxima: Fase 4 — Frontend.
+**Fase atual:** Fases 0 a 4 CONCLUÍDAS (sistema utilizável). Próxima: Fase 5 — Auditoria e produção.
 
 **Última atualização:** 2026-10-02 (Sessão 1).
 
-**Último commit:** `feat: history and dashboard API (phase 3)` (branch `claude/sistema-marmitex-b2b-j8apnv`).
+**Último commit:** `feat: frontend (phase 4)` (branch `claude/sistema-marmitex-b2b-j8apnv`).
 
-**Próxima ação:** Fase 4 — frontend React + TypeScript + Vite + Tailwind (login, cadastros, lançamentos com data editável e tipo de comprador, custos com acumulado, histórico, dashboard geral e por empresa/cliente), consumindo a API já pronta.
+**Próxima ação:** Fase 5 — validar `docker compose up -d --build` no notebook servidor, backup automático (`pg_dump`) e restauração testada, revisão de segurança/performance, documentação de instalação e uso para o ADMIN.
 
 ---
 
@@ -273,30 +273,49 @@ Todos os cenários FIN-01 a FIN-29 do `TEST-PLAN.md` estão cobertos (unitário 
 
 # FASE 4 — FRONTEND
 
-**Status:** PENDENTE
+**Status:** CONCLUÍDA (2026-10-02)
 
 ### Rotas
 
-* [ ] `/login`
-* [ ] `/cadastros/empresas`
-* [ ] `/cadastros/clientes`
-* [ ] `/cadastros/categorias`
-* [ ] `/lancamentos/vendas`
-* [ ] `/lancamentos/custos`
-* [ ] `/historico`
-* [ ] `/dashboard`
+* [x] `/login`
+* [x] `/cadastros/empresas`
+* [x] `/cadastros/clientes`
+* [x] `/cadastros/categorias`
+* [x] `/lancamentos/vendas`
+* [x] `/lancamentos/custos`
+* [x] `/historico`
+* [x] `/dashboard` (geral, `?empresa=`, `?cliente=`)
+* [x] `/usuarios` (adicional: usuários ADMIN e troca de senha)
 
 ### Funcionalidades
 
-* [ ] login
-* [ ] empresas
-* [ ] clientes
-* [ ] categorias
-* [ ] vendas
-* [ ] custos
-* [ ] histórico
-* [ ] dashboard
-* [ ] dashboard por empresa
+* [x] login
+* [x] empresas
+* [x] clientes
+* [x] categorias
+* [x] vendas
+* [x] custos
+* [x] histórico
+* [x] dashboard
+* [x] dashboard por empresa
+* [x] dashboard por cliente avulso
+* [x] vendas: tipo de comprador, data editável (padrão hoje), preço sugerido pela última venda do comprador
+* [x] custos: totais do mês sempre visíveis + coluna Acumulado
+* [x] histórico: filtros na URL, totais para fechamento quinzenal/mensal
+
+### Arquivos importantes
+
+* `frontend/src/app/` (rotas, menu, login), `frontend/src/api/` (cliente HTTP, tipos), `frontend/src/features/*` (telas)
+* `frontend/src/components/charts.tsx` — gráficos com paleta validada e "Ver tabela"
+* `frontend/Dockerfile`, `frontend/nginx.conf`, serviço `frontend` no `docker-compose.yml` (porta 8080)
+
+### Testes
+
+* `cd frontend && npm run test` — 18 testes (formatação, cliente da API, rotas protegidas, vendas, custos, dashboard). Todos passando.
+* `npm run typecheck`, `npm run lint`, `npm run build` — OK.
+* `npm run e2e` — 4 fluxos Playwright (cadastro → vendas → histórico → dashboard; novo tipo de custo → acumulado; venda esquecida com data de ontem + empresa desativada; logout) contra o sistema completo. Todos passando.
+* Conferência visual por capturas de tela com dados fictícios (setembro: receita R$ 89.026,50; custos R$ 52.828,39; lucro R$ 36.198,11).
+
 
 ---
 
@@ -340,46 +359,46 @@ _API concluída na Fase 3 (`GET /history`); tela na Fase 4._
 
 ### Indicadores
 
-* [ ] Receita Total
-* [ ] Custos Fixos
-* [ ] Custos Diários
-* [ ] Custos Totais
-* [ ] Lucro Líquido
-* [ ] Quantidade de Marmitas
-* [ ] Custo Médio por Marmita
+* [x] Receita Total
+* [x] Custos Fixos
+* [x] Custos Diários
+* [x] Custos Totais
+* [x] Lucro Líquido
+* [x] Quantidade de Marmitas
+* [x] Custo Médio por Marmita
 
 ### Gráficos
 
-* [ ] receita diária
-* [ ] quantidade diária
-* [ ] receita por empresa
-* [ ] receita total
-* [ ] custos diários
-* [ ] lucro diário
-* [ ] histórico de vendas por empresa
+* [x] receita diária
+* [x] quantidade diária
+* [x] receita por empresa
+* [x] receita total
+* [x] custos diários
+* [x] lucro diário
+* [x] histórico de vendas por empresa
 
 ### Filtros
 
-* [ ] hoje
-* [ ] semana
-* [ ] mês
-* [ ] período personalizado
-* [ ] empresa
+* [x] hoje
+* [x] semana
+* [x] mês
+* [x] período personalizado
+* [x] empresa
 
 ---
 
 # DASHBOARD POR EMPRESA
 
-**Status:** PENDENTE
+**Status:** CONCLUÍDO
 
-* [ ] selecionar empresa
-* [ ] receita
-* [ ] quantidade
-* [ ] ticket médio
-* [ ] histórico diário
-* [ ] clientes
-* [ ] vendas
-* [ ] evolução do período
+* [x] selecionar empresa
+* [x] receita
+* [x] quantidade
+* [x] ticket médio
+* [x] histórico diário
+* [x] clientes — substituído: clientes avulsos não pertencem a empresas (decisão de 2026-10-02); há dashboard próprio por cliente
+* [x] vendas
+* [x] evolução do período
 
 ---
 
@@ -458,6 +477,10 @@ Decisões validadas com o negócio em 2026-10-02 (revisão da Fase 0):
 
 **Decisão (validada):** apenas o papel `ADMIN`, que lança todas as vendas e custos. A data de venda e de custo é escolhida pelo ADMIN (padrão: hoje do servidor, fuso `America/Sao_Paulo`), permitindo lançar o que foi esquecido; nunca futura; toda alteração auditada.
 **Impacto:** substitui "data oficial vem do servidor" (MASTER-PROMPT §9) e a matriz de papéis/permissões; mantém-se `users.role` e `require_admin` para extensão futura. Ver `ARCHITECTURE.md` D-06 e `API.md` seção 2.
+
+### 2026-10-02 — Data de pagamento e local/obra
+
+**Decisão (validada):** a data de pagamento continua sendo uma data alterável pelo ADMIN (não um dia fixo do mês). Empresas também têm **local/obra**.
 
 ### 2026-10-02 — Períodos pré-definidos
 
@@ -549,6 +572,13 @@ Possíveis categorias:
 
 # ÚLTIMAS ALTERAÇÕES
 
+### 2026-10-02 — Fase 4
+
+* Campo **local/obra** no cadastro de empresas (migration `0003_company_location`). Data de pagamento confirmada como data alterável pelo ADMIN.
+* Frontend completo em português: login, cadastros, vendas, custos (acumulado), histórico, dashboard geral, por empresa e por cliente, usuários.
+* API: `cumulative_revenue` na série diária; parâmetro `top` em `/dashboard/sales-by-company-daily`.
+* Docker do frontend (Nginx) e serviço no `docker-compose.yml`.
+
 ### 2026-10-02 — Fase 3
 
 * `/history` (vendas + custos, filtros, ordenação, paginação, totais para fechamento quinzenal/mensal).
@@ -600,7 +630,7 @@ Formato:
 `cd backend && pytest` (PostgreSQL 16 local; banco de teste `marmitex_test` recriado automaticamente; variável `TEST_DATABASE_URL`).
 
 **Resultado:**
-189 passed. `ruff check .` OK. `mypy app` OK. Teste manual com `uvicorn` + `python -m app.cli create-admin`: login, cadastro, venda, custo e resumo de custos funcionando.
+Backend: 189 passed (`ruff`, `mypy` OK). Frontend: 18 passed (Vitest), typecheck/lint/build OK, 4 passed (Playwright E2E). `mypy app` OK. Teste manual com `uvicorn` + `python -m app.cli create-admin`: login, cadastro, venda, custo e resumo de custos funcionando.
 
 **Falhas:**
 Nenhuma. Observação: build da imagem Docker não executado nesta sessão (ambiente sem daemon Docker); `docker compose config` validado.
@@ -637,7 +667,8 @@ Ao iniciar:
 * Correção do negócio aplicada (somente faturamento por empresa; datas de início/pagamento; custos acumulados; 1–2 notebooks).
 * Fase 1 e Fase 2 implementadas e testadas (161 testes).
 * Fase 3 implementada (histórico e dashboard na API).
-* Próxima sessão: Fase 4 (frontend).
+* Fase 4 implementada (frontend + E2E).
+* Próxima sessão: Fase 5 (produção).
 
 ---
 

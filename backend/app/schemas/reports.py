@@ -70,6 +70,7 @@ class SummaryOut(OutputModel):
 class DailyItem(OutputModel):
     date: date
     revenue: MoneyOut
+    cumulative_revenue: MoneyOut
     quantity: int
     sales_count: int
     daily_costs: MoneyOut
