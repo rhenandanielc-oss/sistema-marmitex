@@ -12,13 +12,13 @@ O Claude Code deve atualizá-lo ao final de cada etapa significativa.
 
 **Status:** EM ANDAMENTO
 
-**Fase atual:** Fases 0, 1 e 2 CONCLUÍDAS. Próxima: Fase 3 — API (histórico e dashboard).
+**Fase atual:** Fases 0, 1, 2 e 3 CONCLUÍDAS (backend completo). Próxima: Fase 4 — Frontend.
 
 **Última atualização:** 2026-10-02 (Sessão 1).
 
-**Último commit:** `feat: sales, costs and financial engine (phase 2)` (branch `claude/sistema-marmitex-b2b-j8apnv`).
+**Último commit:** `feat: history and dashboard API (phase 3)` (branch `claude/sistema-marmitex-b2b-j8apnv`).
 
-**Próxima ação:** Fase 3 — expor `/history` (consulta unificada com `totals`) e `/dashboard/*` (summary, daily, by-buyer, sales-by-company-daily, companies/{id}, customers/{id}) usando `financial_service.py`, com testes de integração HTTP (DSH-*, HIS-*).
+**Próxima ação:** Fase 4 — frontend React + TypeScript + Vite + Tailwind (login, cadastros, lançamentos com data editável e tipo de comprador, custos com acumulado, histórico, dashboard geral e por empresa/cliente), consumindo a API já pronta.
 
 ---
 
@@ -224,39 +224,50 @@ Todos os cenários FIN-01 a FIN-29 do `TEST-PLAN.md` estão cobertos (unitário 
 
 # FASE 3 — API
 
-**Status:** PENDENTE
+**Status:** CONCLUÍDA (2026-10-02) — backend; telas na Fase 4
 
 ### Endpoints
 
-* [ ] autenticação
-* [ ] empresas
-* [ ] clientes
-* [ ] categorias
-* [ ] vendas
-* [ ] custos
-* [ ] histórico
-* [ ] dashboard
+* [x] autenticação
+* [x] empresas
+* [x] clientes
+* [x] categorias
+* [x] vendas
+* [x] custos
+* [x] histórico
+* [x] dashboard
 
 ### Dashboard
 
-* [ ] resumo financeiro
-* [ ] vendas diárias
-* [ ] faturamento por comprador (`/dashboard/by-buyer`)
-* [ ] quantidade diária
-* [ ] custos diários
-* [ ] lucro diário
-* [ ] histórico por empresa
-* [ ] dashboard por cliente avulso
+* [x] resumo financeiro
+* [x] vendas diárias
+* [x] faturamento por comprador (`/dashboard/by-buyer`)
+* [x] quantidade diária
+* [x] custos diários
+* [x] lucro diário
+* [x] histórico por empresa
+* [x] dashboard por cliente avulso
 
 ### Recursos
 
-* [ ] filtros
-* [ ] paginação
-* [ ] ordenação
-* [ ] tratamento de erros
-* [ ] autorização
-* [ ] OpenAPI
-* [ ] testes de integração
+* [x] filtros
+* [x] paginação
+* [x] ordenação
+* [x] tratamento de erros
+* [x] autorização
+* [x] OpenAPI
+* [x] testes de integração
+
+### Arquivos importantes
+
+* `backend/app/api/v1/routes/reports.py` — `/history` e `/dashboard/*` (summary, daily, by-buyer, sales-by-company-daily, companies/{id}, customers/{id})
+* `backend/app/services/history_service.py` — histórico unificado (UNION de vendas e custos) com totais
+* `backend/app/schemas/reports.py` — formatos de resposta
+* `backend/tests/integration/test_reports.py` — 28 testes HTTP (DSH-*, HIS-*)
+
+### Testes
+
+`cd backend && pytest` — **189 testes, todos passando**. `ruff` e `mypy` OK.
 
 ---
 
@@ -291,35 +302,37 @@ Todos os cenários FIN-01 a FIN-29 do `TEST-PLAN.md` estão cobertos (unitário 
 
 # HISTÓRICO
 
+_API concluída na Fase 3 (`GET /history`); tela na Fase 4._
+
 ### Filtros
 
-* [ ] empresa
-* [ ] cliente
-* [ ] data inicial
-* [ ] data final
-* [ ] tipo
+* [x] empresa
+* [x] cliente
+* [x] data inicial
+* [x] data final
+* [x] tipo
 
 ### Vendas
 
-* [ ] data
-* [ ] empresa
-* [ ] cliente
-* [ ] quantidade
-* [ ] preço
-* [ ] subtotal
+* [x] data
+* [x] empresa
+* [x] cliente
+* [x] quantidade
+* [x] preço
+* [x] subtotal
 
 ### Custos
 
-* [ ] data
-* [ ] categoria
-* [ ] tipo
-* [ ] valor
+* [x] data
+* [x] categoria
+* [x] tipo
+* [x] valor
 
 ### Recursos
 
-* [ ] paginação
-* [ ] ordenação
-* [ ] filtros
+* [x] paginação
+* [x] ordenação
+* [x] filtros
 
 ---
 
@@ -536,6 +549,12 @@ Possíveis categorias:
 
 # ÚLTIMAS ALTERAÇÕES
 
+### 2026-10-02 — Fase 3
+
+* `/history` (vendas + custos, filtros, ordenação, paginação, totais para fechamento quinzenal/mensal).
+* `/dashboard/summary`, `/daily`, `/by-buyer`, `/sales-by-company-daily`, `/companies/{id}`, `/customers/{id}`.
+* Testes: 189 passando.
+
 ### 2026-10-02 — Fases 1 e 2
 
 * Fase 1: backend FastAPI, modelos, migrations, autenticação (ADMIN), usuários, empresas, clientes avulsos (com data de início e de pagamento), categorias, auditoria, Docker.
@@ -581,7 +600,7 @@ Formato:
 `cd backend && pytest` (PostgreSQL 16 local; banco de teste `marmitex_test` recriado automaticamente; variável `TEST_DATABASE_URL`).
 
 **Resultado:**
-161 passed. `ruff check .` OK. `mypy app` OK. Teste manual com `uvicorn` + `python -m app.cli create-admin`: login, cadastro, venda, custo e resumo de custos funcionando.
+189 passed. `ruff check .` OK. `mypy app` OK. Teste manual com `uvicorn` + `python -m app.cli create-admin`: login, cadastro, venda, custo e resumo de custos funcionando.
 
 **Falhas:**
 Nenhuma. Observação: build da imagem Docker não executado nesta sessão (ambiente sem daemon Docker); `docker compose config` validado.
@@ -617,7 +636,8 @@ Ao iniciar:
 * Revisão com o negócio aplicada (empresas × clientes avulsos, lucro por empresa, papel único ADMIN, data escolhida pelo ADMIN).
 * Correção do negócio aplicada (somente faturamento por empresa; datas de início/pagamento; custos acumulados; 1–2 notebooks).
 * Fase 1 e Fase 2 implementadas e testadas (161 testes).
-* Próxima sessão: Fase 3.
+* Fase 3 implementada (histórico e dashboard na API).
+* Próxima sessão: Fase 4 (frontend).
 
 ---
 

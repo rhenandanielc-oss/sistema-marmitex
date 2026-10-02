@@ -95,3 +95,30 @@ def buyer_detail(db: Session, buyer_type: str, buyer_id: int, period: Period, re
         previous=prev_totals,
         revenue_change_percent=fe.percent_change(totals.revenue, prev_totals.revenue),
     )
+
+
+@dataclass(frozen=True)
+class CompanySeries:
+    companies: list[tuple[int, str]]
+    has_other_companies: bool
+    items: list[tuple[date, dict[int, Decimal], Decimal, Decimal]]
+
+
+def sales_by_company_daily(db: Session, period: Period, top: int = 10) -> CompanySeries:
+    """Receita diária por empresa (top N do período) + "Outras empresas" + "Clientes avulsos"."""
+    ensure_series_limit(period)
+    companies = [b for b in financial_repo.sales_by_buyer(db, period.start_date, period.end_date, BuyerType.COMPANY)]
+    companies.sort(key=lambda b: (-b.totals.revenue, b.name.lower(), b.buyer_id))
+    top_ids = [b.buyer_id for b in companies[:top]]
+    by_company = financial_repo.daily_revenue_by_company(db, period.start_date, period.end_date)
+    customers = financial_repo.daily_sales(db, period.start_date, period.end_date, buyer_type=BuyerType.CUSTOMER)
+    items = []
+    for day in period.iter_days():
+        values = {cid: by_company.get((day, cid), fe.ZERO) for cid in top_ids}
+        others = sum((v for (d, cid), v in by_company.items() if d == day and cid not in values), fe.ZERO)
+        items.append((day, values, others, customers.get(day, fe.SalesTotals()).revenue))
+    return CompanySeries(
+        companies=[(b.buyer_id, b.name) for b in companies[:top]],
+        has_other_companies=len(companies) > top,
+        items=items,
+    )

@@ -107,3 +107,13 @@ def sales_by_buyer(db: Session, start: date, end: date, buyer_type: str | None =
         result.extend(BuyerTotals(buyer_type=str(btype), buyer_id=r[0], name=r[1], totals=_to_sales(r[2], r[3], r[4]))
                       for r in rows)
     return result
+
+
+def daily_revenue_by_company(db: Session, start: date, end: date) -> dict[tuple[date, int], Decimal]:
+    """Receita por (dia, empresa) — gráfico "histórico de vendas por empresa"."""
+    rows = db.execute(
+        select(Sale.sale_date, Sale.company_id, func.sum(Sale.subtotal))
+        .where(*_sales_filters(start, end, buyer_type=BuyerType.COMPANY))
+        .group_by(Sale.sale_date, Sale.company_id)
+    ).all()
+    return {(r[0], r[1]): r[2] for r in rows}

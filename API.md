@@ -246,11 +246,13 @@ Parâmetros: `type` (`SALE` \| `COST` \| `ALL`, padrão `ALL`), `start_date`, `e
   "date": "2026-09-05",
   "amount": "300.00",
   "sale": null,
-  "cost": { "category": { "id": 7, "name": "Aluguel" }, "cost_type": "CUSTO_FIXO", "amount": "300.00" }
+  "cost": { "category": { "id": 7, "name": "Aluguel" }, "cost_type": "CUSTO_FIXO", "amount": "300.00", "description": null }
 }
 ```
 
-* A resposta inclui também `totals` do filtro aplicado (`sales_total`, `sales_quantity`, `sales_count`, `costs_total`), calculados no backend. Filtrando um comprador e um período (ex.: quinzena), `totals.sales_total` é o valor a cobrar no fechamento.
+* Ordenação: `date` (padrão, desc) ou `amount`; no mesmo dia, custos antes de vendas e desempate por `id`.
+* Com `cost_type` ou `category_id` e `type=ALL`, o resultado contém somente custos.
+* A resposta inclui também `totals` do filtro aplicado (`sales_total`, `sales_quantity`, `sales_count`, `costs_total`, `costs_count`), calculados no backend. Filtrando um comprador e um período (ex.: quinzena), `totals.sales_total` é o valor a cobrar no fechamento.
 * Também disponíveis `/sales` e `/costs` para listagens específicas.
 
 ### 3.10 Dashboard
@@ -304,7 +306,7 @@ Parâmetros comuns de período: `period` (`today` \| `week` \| `month` \| `last_
 }
 ```
 
-`GET /dashboard/by-buyer` — parâmetros extras: `buyer_type` (filtra a lista), `sort` (`revenue`, `quantity`, `sales_count`; padrão `revenue desc`). Somente faturamento: custos são gerais e não são atribuídos a compradores (`FINANCIAL-RULES.md` seção 6).
+`GET /dashboard/by-buyer` — parâmetros extras: `buyer_type` (filtra a lista), `sort` (`revenue`, `quantity`, `sales_count`, `name`; padrão `revenue desc`). Somente faturamento: custos são gerais e não são atribuídos a compradores (`FINANCIAL-RULES.md` seção 6).
 
 ```json
 {
@@ -327,7 +329,18 @@ Parâmetros comuns de período: `period` (`today` \| `week` \| `month` \| `last_
 
 `revenue_share_percent` = receita do comprador ÷ receita total × 100, arredondado; `null` se a receita total for zero.
 
-`GET /dashboard/sales-by-company-daily`: `{ companies: [{id, name}], items: [{date, values: {"<company_id>": "<revenue>"}, customers_total: "<revenue>"}] }` — limitado às 10 empresas de maior receita no período + "Outras empresas" + "Clientes avulsos".
+`GET /dashboard/sales-by-company-daily` — as 10 empresas de maior receita no período, mais "Outras empresas" e "Clientes avulsos", com todos os dias do período:
+
+```json
+{
+  "period": { ... },
+  "companies": [ { "id": 1, "name": "Empresa A" }, { "id": 2, "name": "Empresa B" } ],
+  "has_other_companies": false,
+  "items": [
+    { "date": "2026-09-01", "values": { "1": "740.00", "2": "0.00" }, "other_companies": "0.00", "customers": "0.00" }
+  ]
+}
+```
 
 `GET /dashboard/companies/{id}` (e `/dashboard/customers/{id}`):
 
@@ -341,9 +354,11 @@ Parâmetros comuns de período: `period` (`today` \| `week` \| `month` \| `last_
   "sales_count": 2,
   "average_ticket": "462.50",
   "average_price_per_meal": "18.50",
+  "revenue_share_percent": "60.26",
   "daily": [ { "date": "...", "revenue": "...", "quantity": 0, "sales_count": 0 } ],
   "recent_sales": [ /* últimas 20 vendas no período, SaleRead */ ],
-  "comparison": { "previous_period": { "start_date": "...", "end_date": "..." }, "revenue": "...", "quantity": 0, "revenue_change_percent": "12.50" }
+  "comparison": { "previous_period": { "preset": "custom", "start_date": "...", "end_date": "...", "days": 30 },
+                  "revenue": "...", "quantity": 0, "sales_count": 0, "revenue_change_percent": "12.50" }
 }
 ```
 
