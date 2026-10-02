@@ -44,8 +44,9 @@ services:
       backend:
         condition: service_healthy
     ports:
-      # Acesso pelos notebooks da rede local: http://<ip-do-notebook-servidor>:8080
-      - "8080:8080"
+      # Padrão: só este notebook acessa (http://localhost:8080).
+      # Para liberar um segundo notebook na rede, use ACESSO_IP=0.0.0.0 no .env (INSTALL.md, seção 7).
+      - "${ACESSO_IP:-127.0.0.1}:8080:8080"
     logging: *logging
 
   backup:

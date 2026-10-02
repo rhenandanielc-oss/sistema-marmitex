@@ -10,7 +10,7 @@ O Claude Code deve atualizá-lo ao final de cada etapa significativa.
 
 # STATUS GERAL
 
-**Status:** CONCLUÍDO (pendente apenas a validação do `docker compose up -d --build` no notebook servidor)
+**Status:** CONCLUÍDO (pendente apenas a validação do `docker compose up -d --build` no notebook)
 
 **Fase atual:** Fases 0 a 5 CONCLUÍDAS.
 
@@ -18,7 +18,7 @@ O Claude Code deve atualizá-lo ao final de cada etapa significativa.
 
 **Último commit:** `feat: production readiness (phase 5)` (branch `claude/sistema-marmitex-b2b-j8apnv`).
 
-**Próxima ação:** Instalar no notebook servidor seguindo `INSTALL.md`, confirmar os 4 serviços *healthy*, criar o administrador, acessar do segundo notebook e configurar a cópia externa dos backups. Melhorias futuras sugeridas: tela de auditoria, controle de recebimentos por fechamento.
+**Próxima ação:** Instalar no notebook seguindo `INSTALL.md` (preencher `.env` e dois cliques em `primeira-instalacao.bat`), conferir a seção 6 e configurar a cópia externa dos backups.
 
 ---
 
@@ -423,7 +423,7 @@ _API concluída na Fase 3 (`GET /history`); tela na Fase 4._
 
 ### Produção
 
-* [x] Dockerfiles (backend, frontend/Nginx) — build a validar no notebook servidor
+* [x] Dockerfiles (backend, frontend/Nginx) — build a validar no notebook
 * [x] configuração de produção
 * [x] migrations
 * [x] `.env.example`
@@ -490,6 +490,11 @@ Decisões validadas com o negócio em 2026-10-02 (revisão da Fase 0):
 **Pedido do negócio:** ao cadastrar e ao lançar venda, informar se o cliente pagou e se é retirada, entrega ou obra, para separar os clientes.
 **Decisão:** cadastro (empresa e cliente) tem **recebimento padrão** (`RETIRADA`/`ENTREGA`/`OBRA`); cada venda tem **recebimento** (herdado do cadastro, alterável) e **pagamento** (`PENDENTE`/`PAGO`, botão "Marcar pago"). A situação de pagamento fica na venda (um cliente pode ter vendas pagas e pendentes). Receita conta todas as vendas; "A receber" é informativo (R-VEN-9 a R-VEN-11, F-19).
 
+### 2026-10-02 — Instalação em um notebook só
+
+**Pedido do negócio:** instalação e uso mexendo em apenas um notebook.
+**Decisão:** modo padrão de um notebook — porta 8080 presa a `127.0.0.1` (`ACESSO_IP` no `.env`), sem configuração de rede/firewall; atalhos Windows `primeira-instalacao.bat`, `iniciar-marmitex.bat`, `parar-marmitex.bat`, `backup-agora.bat`; segundo notebook virou opcional (`INSTALL.md` §7). `.gitattributes` garante CRLF nos `.bat` e LF nos `.sh` usados pelos contêineres.
+
 ### 2026-10-02 — Períodos pré-definidos
 
 **Decisão:** hoje; semana = segunda-feira corrente até hoje; mês = dia 1 até hoje (padrão); mês anterior = mês fechado; personalizado. Resolvidos no backend.
@@ -537,7 +542,7 @@ Resumo:
 **Descrição:** o ambiente das sessões de desenvolvimento não possui daemon Docker; as imagens `backend` e `frontend` não foram construídas (o `docker compose config` é válido e tudo foi testado fora do Docker).
 **Impacto:** pode exigir um pequeno ajuste na primeira instalação.
 **Status:** aberto.
-**Solução:** executar `docker compose up -d --build` no notebook servidor e seguir `INSTALL.md` §7.
+**Solução:** executar `docker compose up -d --build` no notebook e seguir `INSTALL.md` §5–6.
 
 ### Agendamento do backup (BusyBox `date -d`)
 
@@ -565,7 +570,7 @@ Formato:
 
 # RISCOS
 
-* **disponibilidade:** o notebook servidor precisa estar ligado para o segundo notebook acessar; backup local + cópia externa obrigatórios (Fase 5).
+* **disponibilidade:** o notebook precisa estar ligado (e, no modo opcional, para o segundo notebook acessar); backup local + cópia externa obrigatórios (Fase 5).
 * **datas:** como o ADMIN escolhe a data, lançamentos em data errada são possíveis — mitigado por valor padrão = hoje, bloqueio de data futura e auditoria.
 * **datas:** fuso horário incorreto no servidor geraria vendas no dia errado — mitigado por `APP_TIMEZONE` e teste FIN-20.
 * **concorrência:** edições simultâneas — mitigado por `version` (409).
@@ -585,6 +590,11 @@ Possíveis categorias:
 ---
 
 # ÚLTIMAS ALTERAÇÕES
+
+### 2026-10-02 — Modo de um notebook
+
+* `ACESSO_IP` (padrão `127.0.0.1`) no `docker-compose.yml`/`.env.example`; atalhos `.bat`; `INSTALL.md` reescrito para um notebook; `.gitattributes`.
+* Atalhos `.bat` não executados nesta sessão (ambiente Linux) — validar na instalação.
 
 ### 2026-10-02 — Fase 5
 
@@ -697,7 +707,7 @@ Ao iniciar:
 * Fase 3 implementada (histórico e dashboard na API).
 * Fase 4 implementada (frontend + E2E).
 * Recebimento/pagamento implementados; Fase 5 concluída (auditoria, backup, documentação).
-* Próxima sessão: instalação no notebook servidor e ajustes pedidos pelo uso real.
+* Próxima sessão: instalação no notebook e ajustes pedidos pelo uso real.
 
 ---
 
@@ -722,6 +732,6 @@ Situação em 2026-10-02 (critérios do `MASTER-PROMPT.md` §26):
 * [x] documentação atualizada
 * [x] produção documentada (`INSTALL.md`, `OPERACAO.md`)
 * [x] `PROJECT-STATE.md` atualizado
-* [ ] build Docker validado no notebook servidor (primeira instalação)
+* [ ] build Docker validado no notebook (primeira instalação)
 
 # FIM

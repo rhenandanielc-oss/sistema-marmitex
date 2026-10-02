@@ -41,9 +41,10 @@ Data: 2026-10-02. Escopo: itens do `MASTER-PROMPT.md` §21. Ambiente de verifica
 
 | # | Item | Avaliação |
 |---|---|---|
-| R-1 | **Imagens Docker não construídas nesta sessão** | Validar no notebook servidor: `docker compose up -d --build`, `docker compose ps` (todos *healthy*) e `INSTALL.md` §7 |
+| R-1 | **Imagens Docker não construídas nesta sessão** | Validar na instalação: `primeira-instalacao.bat` (ou `docker compose up -d --build`) e `INSTALL.md` §6 |
 | R-2 | Agendamento do backup usa `date -d` do contêiner Alpine (BusyBox), não testado aqui | Se não suportar, cai no plano B (a cada 24 h desde o início). Conferir `docker compose logs backup` na primeira semana |
-| R-3 | HTTP sem TLS na rede local | Aceitável para uso em rede doméstica/empresarial privada com Wi-Fi protegido (WPA2/WPA3). Não expor a porta 8080 na internet |
+| R-3 | HTTP sem TLS | Padrão: acesso só do próprio notebook (`ACESSO_IP=127.0.0.1`), sem tráfego na rede. Se liberar um segundo notebook: somente em rede privada com Wi-Fi protegido (WPA2/WPA3); nunca expor a porta 8080 na internet |
+| R-9 | Atalhos `.bat` do Windows não executados nesta sessão (ambiente Linux) | Testar na primeira instalação; o caminho manual equivalente está no `INSTALL.md` |
 | R-4 | Token de sessão em `sessionStorage` (exposto em caso de XSS) | Mitigado: CSP restritiva no Nginx, React escapa conteúdo, nenhum HTML de usuário é renderizado; sessão expira em 8 h e some ao fechar a aba |
 | R-5 | Limite de tentativas de login é em memória (zera ao reiniciar a API) | Aceitável para 1–2 notebooks na rede local |
 | R-6 | A tabela de auditoria é "somente inserção" na aplicação, mas o usuário do banco é dono das tabelas (pode alterá-las via SQL direto) | Aceitável para o porte; restringir permissões exigiria um usuário de banco separado para migrations. Registrado em `DATABASE.md` |

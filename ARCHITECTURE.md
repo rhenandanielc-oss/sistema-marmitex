@@ -194,8 +194,8 @@ Entidades editáveis possuem coluna `version` (inteiro). Toda edição envia a `
 ### D-09 — Agregações no banco, fórmulas no motor financeiro
 Somas e agrupamentos são feitos em SQL (eficiente, com índices). As fórmulas derivadas (lucro, médias, percentuais, acumulados, arredondamento) ficam em `financial_engine.py` para serem testadas isoladamente e não haver duas implementações da mesma regra.
 
-### D-11 — Uso em 1 a 2 notebooks
-O sistema será usado em no máximo dois notebooks. Implantação alvo: um notebook "servidor" executa `docker compose` (PostgreSQL + backend + frontend servido por Nginx); o segundo notebook, se houver, acessa pelo navegador via rede local (`http://<ip-do-servidor>:8080`). Consequências: sem balanceamento, cache distribuído ou filas; limite de tentativas de login em memória; backup diário com `pg_dump` para pasta local + cópia externa (pendrive/nuvem) documentada na Fase 5.
+### D-11 — Uso em um notebook (segundo notebook opcional)
+Implantação padrão: **um único notebook** executa `docker compose` (PostgreSQL + backend + frontend servido por Nginx + backup) e acessa por `http://localhost:8080`; a porta 8080 fica presa a `127.0.0.1` (`ACESSO_IP`). Atalhos `.bat` (instalar, iniciar, parar, backup) para Windows. Opcionalmente, `ACESSO_IP=0.0.0.0` libera um segundo notebook pela rede local (`http://<ip>:8080`). Consequências: sem balanceamento, cache distribuído ou filas; limite de tentativas de login em memória; backup diário com `pg_dump` para pasta local + cópia externa (pendrive/nuvem) documentada na Fase 5.
 
 ### D-12 — Gráficos
 Recharts. Paleta categórica de 8 cores em ordem fixa, validada para daltonismo (script `validate_palette.js` da skill de visualização): receita = azul, custos = laranja (diários) / violeta (fixos), lucro = verde-água, negativo = vermelho. Nunca dois eixos Y no mesmo gráfico; máximo de 8 séries (demais agrupadas em "Outras"). Como três cores têm contraste < 3:1 sobre o fundo, todo gráfico tem o botão **"Ver tabela"**.

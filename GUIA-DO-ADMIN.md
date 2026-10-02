@@ -2,7 +2,7 @@
 
 # Guia de uso — Sistema Marmitex B2B
 
-Para quem usa o sistema no dia a dia. Acesso: **http://localhost:8080** no notebook principal ou **http://IP-DO-NOTEBOOK:8080** no segundo notebook (veja `INSTALL.md`).
+Para quem usa o sistema no dia a dia. Para abrir: dois cliques em **`iniciar-marmitex.bat`** (ou no atalho "Marmitex" da área de trabalho), ou acesse **http://localhost:8080** no navegador.
 
 ---
 

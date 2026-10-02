@@ -2,7 +2,9 @@
 
 # Operação, backup e deploy — Sistema Marmitex B2B
 
-Comandos executados no **notebook principal**, no PowerShell/terminal, **dentro da pasta do sistema** (ex.: `C:\marmitex`). Instalação inicial: `INSTALL.md`.
+Comandos executados no notebook onde o sistema está instalado, no PowerShell/terminal, **dentro da pasta do sistema** (ex.: `C:\marmitex`). Instalação inicial: `INSTALL.md`.
+
+No Windows, as tarefas mais comuns também têm **atalhos de dois cliques** na pasta do sistema: `iniciar-marmitex.bat`, `parar-marmitex.bat` e `backup-agora.bat`.
 
 ---
 
@@ -11,8 +13,8 @@ Comandos executados no **notebook principal**, no PowerShell/terminal, **dentro 
 | Ação | Comando |
 |---|---|
 | Ver situação | `docker compose ps` |
-| Iniciar (se estiver parado) | `docker compose up -d` |
-| Parar tudo | `docker compose stop` |
+| Iniciar (se estiver parado) | `iniciar-marmitex.bat` ou `docker compose up -d` |
+| Parar tudo | `parar-marmitex.bat` ou `docker compose stop` |
 | Reiniciar | `docker compose restart` |
 | Saúde da API | abrir http://localhost:8080/api/v1/health/ready → `{"status":"ok","database":"up"}` |
 
@@ -35,6 +37,8 @@ Os arquivos ficam em **`backups/`** na pasta do sistema, com nome `marmitex_AAAA
 > Se o horário agendado não puder ser calculado (versão do `date` do contêiner), o serviço faz o backup a cada 24 horas a partir do início — conferir o log na primeira semana: `docker compose logs backup`.
 
 ### Manual (antes de atualizar ou quando quiser)
+
+Dois cliques em **`backup-agora.bat`** (já abre a pasta `backups` para copiar), ou:
 
 ```powershell
 docker compose exec backup /ops/backup.sh
@@ -117,7 +121,8 @@ Ações dos usuários (logins, cadastros, vendas, custos, alterações e exclus�
 |---|---|
 | `docker compose up` falha com "JWT_SECRET de exemplo em produção" ou "Senha de exemplo no DATABASE_URL" | Preencha o `.env` conforme `INSTALL.md` seção 4. |
 | Tela "Não foi possível conectar ao servidor" | `docker compose ps`; se algum serviço estiver parado, `docker compose up -d`. Veja `docker compose logs backend`. |
-| Segundo notebook não abre | Confirme o IP (`ipconfig`), a regra de firewall da porta 8080 e se a rede está como **Privada**. Teste antes no próprio notebook principal pelo IP. |
+| Segundo notebook não abre | Por padrão só o próprio notebook acessa. Para liberar, siga `INSTALL.md` seção 7 (`ACESSO_IP=0.0.0.0`, firewall e rede **Privada**). |
+| Atalho `.bat` fecha sem abrir o sistema | Rode-o pelo PowerShell (`.\iniciar-marmitex.bat`) para ver a mensagem; confira se o Docker Desktop está instalado e o `.env` existe. |
 | Esqueci a senha | Outro administrador redefine em **Usuários → Redefinir senha**. Se não houver outro: `docker compose exec backend python -m app.cli create-admin` com um novo e-mail no `.env` (`INITIAL_ADMIN_EMAIL`). |
 | "Muitas tentativas" no login | Aguarde 15 minutos (proteção contra tentativas repetidas). |
 | Disco cheio | Apague backups antigos já copiados para fora; `docker system prune` remove imagens não usadas. |
@@ -130,5 +135,5 @@ Ações dos usuários (logins, cadastros, vendas, custos, alterações e exclus�
 * Senhas de administrador com 8+ caracteres e diferentes para cada pessoa; não compartilhar login (a auditoria registra quem fez cada operação).
 * Desativar (não apagar) usuários que saírem.
 * Manter o Windows e o Docker Desktop atualizados.
-* A porta 8080 deve ficar liberada **apenas** na rede privada (não abrir no roteador para a internet).
-* O banco (5432) e a API (8000) só aceitam conexões do próprio notebook; o acesso externo é só pela porta 8080.
+* Por padrão (`ACESSO_IP=127.0.0.1`) o sistema só aceita conexões do próprio notebook. Se liberar um segundo notebook, a porta 8080 deve ficar aberta **apenas** na rede privada (nunca no roteador para a internet).
+* O banco (5432) e a API (8000) sempre aceitam conexões só do próprio notebook.
