@@ -2,11 +2,11 @@
 
 Gestão de vendas B2B de marmitex (empreiteiras e clientes avulsos) e controle financeiro: cadastros, vendas, custos, histórico, dashboard com lucro líquido, faturamento por empresa, recebimento (retirada/entrega/obra) e pagamentos pendentes.
 
-Feito para uso local em 1–2 notebooks.
+Feito para uso local em **um notebook** (opcionalmente, acesso de um segundo notebook na mesma rede).
 
 | Documento | Para quê |
 |---|---|
-| [`INSTALL.md`](INSTALL.md) | Instalar no notebook principal e acessar do segundo notebook |
+| [`INSTALL.md`](INSTALL.md) | Instalar em um notebook (dois cliques no Windows); segundo notebook opcional |
 | [`OPERACAO.md`](OPERACAO.md) | Backup, restauração, atualização, logs, problemas comuns |
 | [`GUIA-DO-ADMIN.md`](GUIA-DO-ADMIN.md) | Como usar as telas no dia a dia |
 | [`FINANCIAL-RULES.md`](FINANCIAL-RULES.md) | Regras e fórmulas financeiras oficiais |
@@ -15,6 +15,10 @@ Feito para uso local em 1–2 notebooks.
 | [`PROJECT-STATE.md`](PROJECT-STATE.md) | Estado do projeto e decisões |
 
 ## Início rápido
+
+Windows: instale o Docker Desktop, copie `.env.example` para `.env`, preencha as senhas (`INSTALL.md` seção 4) e dê dois cliques em **`primeira-instalacao.bat`**. No dia a dia: **`iniciar-marmitex.bat`**.
+
+Terminal (qualquer sistema):
 
 ```bash
 cp .env.example .env          # preencha senhas e JWT_SECRET (INSTALL.md seção 4)

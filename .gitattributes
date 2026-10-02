@@ -1,0 +1,4 @@
+# Scripts do Windows precisam de fim de linha CRLF
+*.bat text eol=crlf
+# Scripts de shell (contêineres Linux) precisam de LF
+*.sh text eol=lf
