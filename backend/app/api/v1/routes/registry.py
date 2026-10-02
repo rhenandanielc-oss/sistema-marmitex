@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from app.core.permissions import AdminUser, DbSession
-from app.models.enums import CompanyBillingCycle, CostType, CustomerBillingCycle
+from app.models.enums import CompanyBillingCycle, CostType, CustomerBillingCycle, DeliveryType
 from app.schemas.common import Page, SortOrder, VersionIn
 from app.schemas.registry import (
     CategoryCreate,
@@ -32,10 +32,11 @@ categories = APIRouter(prefix="/cost-categories", tags=["Categorias de custo"])
 
 @companies.get("", response_model=Page[CompanyRead], summary="Lista empresas (empreiteiras)")
 def list_companies(admin: AdminUser, db: DbSession, q: str | None = None, active: bool | None = None,
-                   billing_cycle: CompanyBillingCycle | None = None, sort: str | None = None,
-                   order: SortOrder = "asc", page: PageNum = 1, page_size: PageSize = 20) -> Page[CompanyRead]:
+                   billing_cycle: CompanyBillingCycle | None = None, delivery_type: DeliveryType | None = None,
+                   sort: str | None = None, order: SortOrder = "asc", page: PageNum = 1,
+                   page_size: PageSize = 20) -> Page[CompanyRead]:
     items, total = svc.list_companies(db, q=q, active=active, billing_cycle=billing_cycle, sort=sort,
-                                      order=order, page=page, page_size=page_size)
+                                      order=order, page=page, page_size=page_size, delivery_type=delivery_type)
     return Page.build([CompanyRead.model_validate(i) for i in items], total, page, page_size)
 
 
@@ -68,10 +69,11 @@ def deactivate_company(company_id: int, data: VersionIn, admin: AdminUser, db: D
 
 @customers.get("", response_model=Page[CustomerRead], summary="Lista clientes avulsos")
 def list_customers(admin: AdminUser, db: DbSession, q: str | None = None, active: bool | None = None,
-                   billing_cycle: CustomerBillingCycle | None = None, sort: str | None = None,
-                   order: SortOrder = "asc", page: PageNum = 1, page_size: PageSize = 20) -> Page[CustomerRead]:
+                   billing_cycle: CustomerBillingCycle | None = None, delivery_type: DeliveryType | None = None,
+                   sort: str | None = None, order: SortOrder = "asc", page: PageNum = 1,
+                   page_size: PageSize = 20) -> Page[CustomerRead]:
     items, total = svc.list_customers(db, q=q, active=active, billing_cycle=billing_cycle, sort=sort,
-                                      order=order, page=page, page_size=page_size)
+                                      order=order, page=page, page_size=page_size, delivery_type=delivery_type)
     return Page.build([CustomerRead.model_validate(i) for i in items], total, page, page_size)
 
 

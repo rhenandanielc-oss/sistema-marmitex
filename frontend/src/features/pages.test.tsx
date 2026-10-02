@@ -7,11 +7,11 @@ import { CostsPage } from './costs/CostsPage'
 import { DashboardPage } from './dashboard/DashboardPage'
 import { SalesPage } from './sales/SalesPage'
 
-const nbsp = (s: string | null) => (s ?? '').replace(/ /g, ' ')
-const COMPANY = { id: 7, name: 'Construtora Alfa', location: 'Obra Centro', is_active: true, version: 1 }
-const INACTIVE = { id: 8, name: 'Empresa Antiga', location: null, is_active: false, version: 1 }
-const CUSTOMER = { id: 3, name: 'João da Obra', location: null, is_active: true, version: 1 }
-const TOTALS = { sales_total: '0.00', sales_quantity: 0, sales_count: 0, costs_total: '0.00', costs_count: 0 }
+const nbsp = (s: string | null) => (s ?? '').replace(/\u00a0/g, ' ')
+const COMPANY = { id: 7, name: 'Construtora Alfa', location: 'Obra Centro', is_active: true, version: 1, default_delivery_type: 'OBRA' }
+const INACTIVE = { id: 8, name: 'Empresa Antiga', location: null, is_active: false, version: 1, default_delivery_type: 'OBRA' }
+const CUSTOMER = { id: 3, name: 'João da Obra', location: null, is_active: true, version: 1, default_delivery_type: 'ENTREGA' }
+const TOTALS = { sales_total: '0.00', sales_quantity: 0, sales_count: 0, sales_pending_total: '0.00', costs_total: '0.00', costs_count: 0 }
 
 describe('Vendas (FE-02, FE-03, FE-04)', () => {
   function setup(saleResponse: { status?: number; body: unknown }) {
@@ -57,7 +57,28 @@ describe('Vendas (FE-02, FE-03, FE-04)', () => {
     expect(nbsp((await screen.findByRole('status')).textContent)).toContain('R$ 740,00')
     const post = calls.find((c) => c.method === 'POST')!
     expect(post.body).toEqual({ buyer_type: 'COMPANY', company_id: 7, customer_id: null, unit_price: '18.50',
-      quantity: 40, sale_date: '2026-09-29', notes: null })
+      quantity: 40, sale_date: '2026-09-29', delivery_type: 'OBRA', payment_status: 'PENDENTE', notes: null })
+  })
+
+  it('recebimento vem do cadastro do cliente e o pagamento pode ser marcado', async () => {
+    const { calls } = setup({
+      status: 201,
+      body: { id: 2, buyer: { type: 'CUSTOMER', id: 3, name: 'João da Obra' }, quantity: 1, subtotal: '22.00' },
+    })
+    renderApp(<SalesPage />)
+    await screen.findByLabelText(/^Empresa/, { selector: 'select' })
+    await userEvent.click(screen.getByLabelText('Cliente avulso'))
+    const select = await screen.findByLabelText(/^Cliente/, { selector: 'select' })
+    await waitFor(() => expect(within(select).getByText('João da Obra')).toBeInTheDocument())
+    await userEvent.selectOptions(select, '3')
+    await waitFor(() => expect(screen.getByLabelText(/^Recebimento/, { selector: 'select#new-delivery' })).toHaveValue('ENTREGA'))
+    await userEvent.type(screen.getByLabelText(/Preço unitário/), '22')
+    await userEvent.type(screen.getByLabelText(/Quantidade/), '1')
+    await userEvent.click(screen.getByLabelText('Pago'))
+    await userEvent.click(screen.getByRole('button', { name: 'Registrar venda' }))
+    await screen.findByRole('status')
+    const post = calls.find((c) => c.method === 'POST')!.body as Record<string, unknown>
+    expect(post).toMatchObject({ buyer_type: 'CUSTOMER', customer_id: 3, delivery_type: 'ENTREGA', payment_status: 'PAGO' })
   })
 
   it('exibe erro de campo vindo da API', async () => {
@@ -115,11 +136,11 @@ describe('Dashboard (FE-06, FE-07)', () => {
         period, revenue: '1535.00', revenue_by_buyer_type: { COMPANY: '1425.00', CUSTOMER: '110.00' }, quantity: 80,
         quantity_by_buyer_type: { COMPANY: 75, CUSTOMER: 5 }, sales_count: 4, daily_costs: '433.33', fixed_costs: '300.00',
         total_costs: '733.33', net_profit: '801.67', net_margin_percent: '52.23', average_cost_per_meal: '9.17',
-        average_ticket: '383.75', average_price_per_meal: '19.19' } }
+        average_ticket: '383.75', average_price_per_meal: '19.19', pending_revenue: '400.00' } }
       if (p === '/api/v1/dashboard/daily') return { body: { period, items: [] } }
       if (p === '/api/v1/dashboard/by-buyer') return { body: { period, revenue: '1535.00', items: [
         { buyer: { type: 'COMPANY', id: 1, name: 'Empresa A' }, revenue: '925.00', quantity: 50, sales_count: 2,
-          average_ticket: '462.50', average_price_per_meal: '18.50', revenue_share_percent: '60.26' }],
+          average_ticket: '462.50', average_price_per_meal: '18.50', revenue_share_percent: '60.26', pending_revenue: '100.00' }],
         subtotals: { COMPANY: { revenue: '1425.00', quantity: 75, sales_count: 3 }, CUSTOMER: { revenue: '110.00', quantity: 5, sales_count: 1 } } } }
       if (p === '/api/v1/dashboard/sales-by-company-daily') return { body: { period, companies: [], has_other_companies: false, items: [] } }
       if (p === '/api/v1/companies' || p === '/api/v1/customers') return { body: page([]) }

@@ -42,6 +42,7 @@ O dashboard geral considera **tudo**: vendas para empresas, vendas para clientes
 | **Lucro Líquido Geral** (destaque) + margem % | `net_profit`, `net_margin_percent` | F-06, F-11 — vermelho quando negativo |
 | Quantidade de Marmitas (com divisão Empresas / Clientes) | `quantity`, `quantity_by_buyer_type` | F-02 |
 | Custo Médio por Marmita | `average_cost_per_meal` | F-07 — "—" quando `null` |
+| A receber | `pending_revenue` | F-19 — vendas pendentes de pagamento (informativo; não altera receita/lucro), com link para o Histórico filtrado |
 
 Lucro negativo em um dia ou semana (ex.: dia em que o aluguel foi lançado) é esperado e exibido normalmente.
 
@@ -60,6 +61,7 @@ Tabela + gráfico de barras com o **faturamento** de cada empresa e de cada clie
 | Ticket médio | `average_ticket` |
 | Preço médio por marmita | `average_price_per_meal` |
 | % do faturamento | `revenue_share_percent` |
+| A receber | `pending_revenue` |
 
 * Linhas de subtotal "Empresas" e "Clientes avulsos" (`subtotals`) e linha de total igual à Receita Total.
 * Clicar em uma linha abre o dashboard detalhado do comprador.

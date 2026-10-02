@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { api, errorMessage } from '../../api/client'
 import type { BuyerDashboard as BuyerDashboardData, BuyerType } from '../../api/types'
 import { ChartCard, COLORS, DailyBars, type Row } from '../../components/charts'
+import { DeliveryBadge, PaymentBadge } from '../../components/badges'
 import { Kpi } from '../../components/Kpi'
 import { ActiveBadge, Button, Card, ErrorBox, Loading, PageHeader, Table, Td, Th } from '../../components/ui'
 import { BILLING_CYCLE_LABELS, BUYER_TYPE_LABELS, formatDate, formatInt, formatMoney, formatPercent,
@@ -49,10 +50,12 @@ export function BuyerDashboard({ type, id }: { type: BuyerType; id: string }) {
               <Link to={historyLink} className="ml-auto text-brand-700 hover:underline">Fechamento do período no Histórico →</Link>
             </div>
           </Card>
-          <div className="mb-6 grid grid-cols-4 gap-4">
+          <div className="mb-6 grid grid-cols-5 gap-4">
             <Kpi label="Faturamento" emphasis value={formatMoney(d.revenue)}
               hint={`${formatPercent(d.revenue_share_percent)} da receita total`} />
             <Kpi label="Marmitas" value={formatInt(d.quantity)} hint={`${formatInt(d.sales_count)} venda(s)`} />
+            <Kpi label="A receber" value={formatMoney(d.pending_revenue)}
+              hint={<Link to={`${historyLink}&pagamento=PENDENTE`} className="text-brand-700 hover:underline">Ver vendas pendentes</Link>} />
             <Kpi label="Ticket médio" value={formatMoney(d.average_ticket)} hint={`Preço médio por marmita ${formatMoney(d.average_price_per_meal)}`} />
             <Kpi label="Variação vs. período anterior" value={change === null ? '—' : `${isNegative(change) ? '↓' : '↑'} ${formatPercent(change)}`}
               tone={change === null ? 'default' : isNegative(change) ? 'negative' : 'positive'}
@@ -74,7 +77,7 @@ export function BuyerDashboard({ type, id }: { type: BuyerType; id: string }) {
             ) : (
               <Table>
                 <thead><tr><Th>Data</Th><Th className="text-right">Qtd</Th><Th className="text-right">Preço</Th>
-                  <Th className="text-right">Subtotal</Th><Th>Observações</Th></tr></thead>
+                  <Th className="text-right">Subtotal</Th><Th>Recebimento</Th><Th>Pagamento</Th><Th>Observações</Th></tr></thead>
                 <tbody className="divide-y divide-slate-100">
                   {d.recent_sales.map((s) => (
                     <tr key={s.id}>
@@ -82,6 +85,8 @@ export function BuyerDashboard({ type, id }: { type: BuyerType; id: string }) {
                       <Td className="tabular text-right">{formatInt(s.quantity)}</Td>
                       <Td className="tabular text-right">{formatMoney(s.unit_price)}</Td>
                       <Td className="tabular text-right font-medium">{formatMoney(s.subtotal)}</Td>
+                      <Td><DeliveryBadge type={s.delivery_type} /></Td>
+                      <Td><PaymentBadge status={s.payment_status} /></Td>
                       <Td>{s.notes ?? '—'}</Td>
                     </tr>
                   ))}

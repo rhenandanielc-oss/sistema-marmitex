@@ -13,6 +13,8 @@ class HistorySale(OutputModel):
     quantity: int
     unit_price: MoneyOut
     subtotal: MoneyOut
+    delivery_type: str
+    payment_status: str
 
 
 class HistoryCost(OutputModel):
@@ -35,6 +37,7 @@ class HistoryTotals(OutputModel):
     sales_total: MoneyOut
     sales_quantity: int
     sales_count: int
+    sales_pending_total: MoneyOut
     costs_total: MoneyOut
     costs_count: int
 
@@ -65,6 +68,7 @@ class SummaryOut(OutputModel):
     average_cost_per_meal: OptionalMoneyOut
     average_ticket: OptionalMoneyOut
     average_price_per_meal: OptionalMoneyOut
+    pending_revenue: MoneyOut
 
 
 class DailyItem(OutputModel):
@@ -95,6 +99,7 @@ class BuyerRevenueItem(OutputModel):
     average_ticket: OptionalMoneyOut
     average_price_per_meal: OptionalMoneyOut
     revenue_share_percent: OptionalMoneyOut
+    pending_revenue: MoneyOut
 
 
 class Subtotal(OutputModel):
@@ -158,6 +163,7 @@ class BuyerDashboardOut(OutputModel):
     average_ticket: OptionalMoneyOut
     average_price_per_meal: OptionalMoneyOut
     revenue_share_percent: OptionalMoneyOut
+    pending_revenue: MoneyOut
     daily: list[BuyerDailyItem]
     recent_sales: list[SaleRead]
     comparison: ComparisonOut

@@ -15,7 +15,7 @@ describe('cliente da API', () => {
       status: 422,
       body: { error: { code: 'VALIDATION_ERROR', message: 'Dados inválidos.', details: [{ field: 'quantity', message: 'Deve ser maior que 0.' }] } },
     }))
-    const error = await api.post('/sales', { quantity: 0 }).catch((e) => e)
+    const error = (await api.post('/sales', { quantity: 0 }).catch((e: unknown) => e)) as ApiError
     expect(error).toBeInstanceOf(ApiError)
     expect(error.status).toBe(422)
     expect(error.details[0].field).toBe('quantity')
@@ -36,7 +36,7 @@ describe('cliente da API', () => {
 
   it('erro de rede vira mensagem amigável', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('fail') }))
-    const error = await api.get('/x').catch((e) => e)
+    const error = (await api.get('/x').catch((e: unknown) => e)) as ApiError
     expect(error.code).toBe('NETWORK_ERROR')
   })
 })

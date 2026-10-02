@@ -12,12 +12,13 @@ from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session
 
 from app.models import Company, Cost, Customer, Sale
-from app.models.enums import BuyerType, CostType
+from app.models.enums import BuyerType, CostType, PaymentStatus
 from app.services.financial_engine import ZERO, BuyerTotals, CostTotals, SalesTotals
 
 
 def _sales_filters(start: date, end: date, buyer_type: str | None = None, company_id: int | None = None,
-                   customer_id: int | None = None) -> list[Any]:
+                   customer_id: int | None = None, payment_status: str | None = None,
+                   delivery_type: str | None = None) -> list[Any]:
     filters: list[Any] = [Sale.deleted_at.is_(None), Sale.sale_date.between(start, end)]
     if buyer_type:
         filters.append(Sale.buyer_type == buyer_type)
@@ -25,6 +26,10 @@ def _sales_filters(start: date, end: date, buyer_type: str | None = None, compan
         filters.append(Sale.company_id == company_id)
     if customer_id is not None:
         filters.append(Sale.customer_id == customer_id)
+    if payment_status:
+        filters.append(Sale.payment_status == payment_status)
+    if delivery_type:
+        filters.append(Sale.delivery_type == delivery_type)
     return filters
 
 
@@ -100,12 +105,13 @@ def sales_by_buyer(db: Session, start: date, end: date, buyer_type: str | None =
             continue
         rows = db.execute(
             select(model.id, model.name, func.sum(Sale.subtotal), func.sum(Sale.quantity),  # type: ignore[attr-defined]
-                   func.count(Sale.id))
+                   func.count(Sale.id),
+                   func.coalesce(func.sum(Sale.subtotal).filter(Sale.payment_status == PaymentStatus.PENDENTE), 0))
             .join(Sale, and_(fk == model.id, *_sales_filters(start, end, buyer_type=btype)))  # type: ignore[attr-defined]
             .group_by(model.id, model.name)  # type: ignore[attr-defined]
         ).all()
-        result.extend(BuyerTotals(buyer_type=str(btype), buyer_id=r[0], name=r[1], totals=_to_sales(r[2], r[3], r[4]))
-                      for r in rows)
+        result.extend(BuyerTotals(buyer_type=str(btype), buyer_id=r[0], name=r[1], totals=_to_sales(r[2], r[3], r[4]),
+                                  pending_revenue=Decimal(r[5]).quantize(ZERO)) for r in rows)
     return result
 
 

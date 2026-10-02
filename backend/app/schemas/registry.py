@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import EmailStr, Field, field_validator, model_validator
 
-from app.models.enums import CompanyBillingCycle, CostType, CustomerBillingCycle
+from app.models.enums import CompanyBillingCycle, CostType, CustomerBillingCycle, DeliveryType
 from app.schemas.common import InputModel, OutputModel
 from app.services.validators import is_valid_cnpj, is_valid_cpf, only_digits
 
@@ -49,11 +49,13 @@ class _CompanyFields(_RegistryIn):
 class CompanyCreate(_CompanyFields):
     name: str = Field(min_length=2, max_length=150)
     billing_cycle: CompanyBillingCycle = CompanyBillingCycle.MENSAL
+    default_delivery_type: DeliveryType = DeliveryType.OBRA
 
 
 class CompanyUpdate(_CompanyFields):
     name: str | None = Field(None, min_length=2, max_length=150)
     billing_cycle: CompanyBillingCycle | None = None
+    default_delivery_type: DeliveryType | None = None
     version: int = Field(ge=1)
 
 
@@ -66,6 +68,7 @@ class CompanyRead(OutputModel):
     phone: str | None
     email: str | None
     location: str | None
+    default_delivery_type: str
     billing_cycle: str
     start_date: date | None
     payment_date: date | None
@@ -102,11 +105,13 @@ class _CustomerFields(_RegistryIn):
 class CustomerCreate(_CustomerFields):
     name: str = Field(min_length=2, max_length=150)
     billing_cycle: CustomerBillingCycle = CustomerBillingCycle.MENSAL
+    default_delivery_type: DeliveryType = DeliveryType.RETIRADA
 
 
 class CustomerUpdate(_CustomerFields):
     name: str | None = Field(None, min_length=2, max_length=150)
     billing_cycle: CustomerBillingCycle | None = None
+    default_delivery_type: DeliveryType | None = None
     version: int = Field(ge=1)
 
 
@@ -116,6 +121,7 @@ class CustomerRead(OutputModel):
     phone: str | None
     document: str | None
     location: str | None
+    default_delivery_type: str
     billing_cycle: str
     start_date: date | None
     payment_date: date | None

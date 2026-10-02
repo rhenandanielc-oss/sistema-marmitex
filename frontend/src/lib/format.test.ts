@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { formatCnpj, formatDate, formatDayMonth, formatInt, formatMoney, formatPercent, isNegative, todayIso } from './format'
 import { normalizeMoneyInput, MONEY_PATTERN } from './money'
 
-const nbsp = (s: string) => s.replace(/ /g, ' ')
+const nbsp = (s: string) => s.replace(/\u00a0/g, ' ')
 
 describe('formatação pt-BR (FE-05)', () => {
   it('formata dinheiro vindo da API como string', () => {

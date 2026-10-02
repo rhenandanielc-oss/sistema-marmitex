@@ -98,9 +98,11 @@ class FinancialSummary:
     average_cost_per_meal: Decimal | None
     average_ticket: Decimal | None
     average_price_per_meal: Decimal | None
+    pending_revenue: Decimal = ZERO
 
 
-def summarize(sales_by_type: dict[str, SalesTotals], costs: CostTotals) -> FinancialSummary:
+def summarize(sales_by_type: dict[str, SalesTotals], costs: CostTotals,
+              pending_revenue: Decimal = ZERO) -> FinancialSummary:
     """Indicadores gerais F-01 a F-11 (empresas + clientes avulsos + todos os custos)."""
     by_type = {t: sales_by_type.get(t, SalesTotals()) for t in BUYER_TYPES}
     sales = sum(by_type.values(), SalesTotals())
@@ -120,6 +122,7 @@ def summarize(sales_by_type: dict[str, SalesTotals], costs: CostTotals) -> Finan
         average_cost_per_meal=_divide(total_costs, sales.quantity),  # F-07
         average_ticket=_divide(sales.revenue, sales.sales_count),  # F-09
         average_price_per_meal=_divide(sales.revenue, sales.quantity),  # F-10
+        pending_revenue=pending_revenue,  # F-19 (informativo; não altera receita nem lucro)
     )
 
 
@@ -169,6 +172,7 @@ class BuyerTotals:
     buyer_id: int
     name: str
     totals: SalesTotals
+    pending_revenue: Decimal = ZERO
 
 
 @dataclass(frozen=True)
@@ -184,6 +188,7 @@ class BuyerRevenue:
     average_ticket: Decimal | None
     average_price_per_meal: Decimal | None
     revenue_share_percent: Decimal | None
+    pending_revenue: Decimal = ZERO
 
 
 def buyer_revenue(buyer: BuyerTotals, total_revenue: Decimal) -> BuyerRevenue:
@@ -194,6 +199,7 @@ def buyer_revenue(buyer: BuyerTotals, total_revenue: Decimal) -> BuyerRevenue:
         average_ticket=_divide(t.revenue, t.sales_count),  # F-15
         average_price_per_meal=_divide(t.revenue, t.quantity),  # F-16
         revenue_share_percent=_divide(t.revenue, total_revenue, HUNDRED),  # F-17
+        pending_revenue=buyer.pending_revenue,
     )
 
 

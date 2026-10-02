@@ -13,6 +13,7 @@ class Customer(IdMixin, TimestampMixin, VersionMixin, AuthorMixin, Base):
     __table_args__ = (
         CheckConstraint("length(trim(name)) >= 2", name="name_min_length"),
         CheckConstraint("billing_cycle IN ('A_VISTA','SEMANAL','QUINZENAL','MENSAL')", name="billing_cycle"),
+        CheckConstraint("default_delivery_type IN ('RETIRADA','ENTREGA','OBRA')", name="default_delivery_type"),
         CheckConstraint("document ~ '^([0-9]{11}|[0-9]{14})$'", name="document_digits"),
         Index("ix_customers_name_lower", func.lower(text("name"))),
         Index("uq_customers_document", "document", unique=True, postgresql_where=text("document IS NOT NULL")),
@@ -23,6 +24,8 @@ class Customer(IdMixin, TimestampMixin, VersionMixin, AuthorMixin, Base):
     phone: Mapped[str | None] = mapped_column(String(20))
     document: Mapped[str | None] = mapped_column(String(14))
     location: Mapped[str | None] = mapped_column(String(150))
+    default_delivery_type: Mapped[str] = mapped_column(String(10), nullable=False, default="RETIRADA",
+                                                       server_default="RETIRADA")
     billing_cycle: Mapped[str] = mapped_column(String(20), nullable=False, default="MENSAL",
                                                server_default="MENSAL")
     start_date: Mapped[date | None] = mapped_column(Date)

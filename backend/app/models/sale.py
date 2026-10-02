@@ -31,6 +31,8 @@ class Sale(IdMixin, TimestampMixin, VersionMixin, AuthorMixin, Base):
             name="single_buyer",
         ),
         CheckConstraint("unit_price > 0", name="unit_price_positive"),
+        CheckConstraint("delivery_type IN ('RETIRADA','ENTREGA','OBRA')", name="delivery_type"),
+        CheckConstraint("payment_status IN ('PAGO','PENDENTE')", name="payment_status"),
         CheckConstraint("quantity > 0", name="quantity_positive"),
         CheckConstraint("subtotal = unit_price * quantity", name="subtotal_formula"),
         Index("ix_sales_sale_date", "sale_date", postgresql_where=text("deleted_at IS NULL")),
@@ -39,6 +41,8 @@ class Sale(IdMixin, TimestampMixin, VersionMixin, AuthorMixin, Base):
         Index("ix_sales_customer_date", "customer_id", "sale_date",
               postgresql_where=text("deleted_at IS NULL AND customer_id IS NOT NULL")),
         Index("ix_sales_buyer_type_date", "buyer_type", "sale_date", postgresql_where=text("deleted_at IS NULL")),
+        Index("ix_sales_payment_status_date", "payment_status", "sale_date",
+              postgresql_where=text("deleted_at IS NULL")),
     )
 
     buyer_type: Mapped[str] = mapped_column(String(10), nullable=False)
@@ -48,6 +52,9 @@ class Sale(IdMixin, TimestampMixin, VersionMixin, AuthorMixin, Base):
     unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     subtotal: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    delivery_type: Mapped[str] = mapped_column(String(10), nullable=False, default="OBRA", server_default="OBRA")
+    payment_status: Mapped[str] = mapped_column(String(10), nullable=False, default="PENDENTE",
+                                                server_default="PENDENTE")
     notes: Mapped[str | None] = mapped_column(String(500))
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     deleted_by: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id"))

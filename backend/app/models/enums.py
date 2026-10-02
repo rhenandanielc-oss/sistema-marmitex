@@ -15,6 +15,17 @@ class BuyerType(StrEnum):
     CUSTOMER = "CUSTOMER"
 
 
+class DeliveryType(StrEnum):
+    RETIRADA = "RETIRADA"
+    ENTREGA = "ENTREGA"
+    OBRA = "OBRA"
+
+
+class PaymentStatus(StrEnum):
+    PAGO = "PAGO"
+    PENDENTE = "PENDENTE"
+
+
 class CompanyBillingCycle(StrEnum):
     QUINZENAL = "QUINZENAL"
     MENSAL = "MENSAL"

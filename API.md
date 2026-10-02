@@ -122,8 +122,8 @@ Login: auditado (`LOGIN_SUCCESS` / `LOGIN_FAILED`), limitado a 5 falhas por e-ma
 
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/companies` | paginada; filtros `q` (nome, nome fantasia, CNPJ, local/obra), `active`, `billing_cycle`; ordenação `name`, `created_at` |
-| POST | `/companies` | `{name, trade_name?, cnpj?, contact_name?, phone?, email?, location?, billing_cycle (QUINZENAL\|MENSAL), start_date?, payment_date?, notes?}` → `201` |
+| GET | `/companies` | paginada; filtros `q` (nome, nome fantasia, CNPJ, local/obra), `active`, `billing_cycle`, `delivery_type` (recebimento padrão); ordenação `name`, `created_at` |
+| POST | `/companies` | `{name, trade_name?, cnpj?, contact_name?, phone?, email?, location?, default_delivery_type? (RETIRADA\|ENTREGA\|OBRA, padrão OBRA), billing_cycle (QUINZENAL\|MENSAL), start_date?, payment_date?, notes?}` → `201` |
 | GET | `/companies/{id}` | detalhe |
 | PATCH | `/companies/{id}` | campos parciais + `version` |
 | POST | `/companies/{id}/activate` · `/companies/{id}/deactivate` | `{version}` → entidade atualizada |
@@ -136,8 +136,8 @@ Independentes das empresas.
 
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/customers` | paginada; filtros `q` (nome, telefone, local), `active`, `billing_cycle`; ordenação `name`, `created_at` |
-| POST | `/customers` | `{name, phone?, document?, location?, billing_cycle (A_VISTA\|SEMANAL\|QUINZENAL\|MENSAL), start_date?, payment_date?, notes?}` → `201` |
+| GET | `/customers` | paginada; filtros `q` (nome, telefone, local), `active`, `billing_cycle`, `delivery_type`; ordenação `name`, `created_at` |
+| POST | `/customers` | `{name, phone?, document?, location?, default_delivery_type? (padrão RETIRADA), billing_cycle (A_VISTA\|SEMANAL\|QUINZENAL\|MENSAL), start_date?, payment_date?, notes?}` → `201` |
 | GET | `/customers/{id}` | detalhe |
 | PATCH | `/customers/{id}` | campos parciais + `version` |
 | POST | `/customers/{id}/activate` · `/customers/{id}/deactivate` | `{version}` |
@@ -159,10 +159,10 @@ Aba onde o ADMIN cadastra novos tipos de custo (ex.: "Embalagens", "Ingredientes
 
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/sales` | paginada; filtros `start_date`, `end_date`, `buyer_type`, `company_id`, `customer_id`; ordenação `sale_date`, `subtotal`, `quantity`, `buyer` (padrão `sale_date desc`) |
-| POST | `/sales` | `{buyer_type, company_id?, customer_id?, unit_price, quantity, sale_date?, notes?}` → `201` |
+| GET | `/sales` | paginada; filtros `start_date`, `end_date`, `buyer_type`, `company_id`, `customer_id`, `payment_status`, `delivery_type`; ordenação `sale_date`, `subtotal`, `quantity`, `buyer` (padrão `sale_date desc`) |
+| POST | `/sales` | `{buyer_type, company_id?, customer_id?, unit_price, quantity, sale_date?, delivery_type?, payment_status? (padrão PENDENTE), notes?}` → `201` |
 | GET | `/sales/{id}` | detalhe |
-| PATCH | `/sales/{id}` | `{buyer_type?, company_id?, customer_id?, unit_price?, quantity?, sale_date?, notes?, version}` |
+| PATCH | `/sales/{id}` | `{buyer_type?, company_id?, customer_id?, unit_price?, quantity?, sale_date?, delivery_type?, payment_status?, notes?, version}` — "marcar como pago" = `{payment_status: "PAGO", version}` |
 | DELETE | `/sales/{id}` | exclusão lógica → `204` |
 
 Regras (`FINANCIAL-RULES.md` seção 3):
@@ -182,6 +182,8 @@ Resposta `SaleRead`:
   "unit_price": "18.50",
   "quantity": 40,
   "subtotal": "740.00",
+  "delivery_type": "OBRA",
+  "payment_status": "PENDENTE",
   "notes": null,
   "version": 1,
   "created_at": "2026-09-01T14:03:11Z",
@@ -223,9 +225,9 @@ Resposta de `GET /costs`:
 |---|---|---|
 | GET | `/history` | consulta unificada de lançamentos |
 
-Parâmetros: `type` (`SALE` \| `COST` \| `ALL`, padrão `ALL`), `start_date`, `end_date`, `buyer_type`, `company_id`, `customer_id`, `cost_type`, `category_id`, `page`, `page_size`, `sort` (`date`, `amount`), `order`.
+Parâmetros: `type` (`SALE` \| `COST` \| `ALL`, padrão `ALL`), `start_date`, `end_date`, `buyer_type`, `company_id`, `customer_id`, `payment_status`, `delivery_type`, `cost_type`, `category_id`, `page`, `page_size`, `sort` (`date`, `amount`), `order`.
 
-* Com `buyer_type`, `company_id` ou `customer_id`, custos não se aplicam (não são vinculados a comprador) e o resultado contém somente vendas.
+* Com `buyer_type`, `company_id`, `customer_id`, `payment_status` ou `delivery_type`, custos não se aplicam (não são vinculados a comprador) e o resultado contém somente vendas.
 * Item:
 
 ```json
@@ -252,7 +254,7 @@ Parâmetros: `type` (`SALE` \| `COST` \| `ALL`, padrão `ALL`), `start_date`, `e
 
 * Ordenação: `date` (padrão, desc) ou `amount`; no mesmo dia, custos antes de vendas e desempate por `id`.
 * Com `cost_type` ou `category_id` e `type=ALL`, o resultado contém somente custos.
-* A resposta inclui também `totals` do filtro aplicado (`sales_total`, `sales_quantity`, `sales_count`, `costs_total`, `costs_count`), calculados no backend. Filtrando um comprador e um período (ex.: quinzena), `totals.sales_total` é o valor a cobrar no fechamento.
+* A resposta inclui também `totals` do filtro aplicado (`sales_total`, `sales_quantity`, `sales_count`, `sales_pending_total` (a receber), `costs_total`, `costs_count`), calculados no backend. Filtrando um comprador e um período (ex.: quinzena), `totals.sales_total` é o valor a cobrar no fechamento.
 * Também disponíveis `/sales` e `/costs` para listagens específicas.
 
 ### 3.10 Dashboard
@@ -289,7 +291,8 @@ Parâmetros comuns de período: `period` (`today` \| `week` \| `month` \| `last_
   "net_margin_percent": "52.23",
   "average_cost_per_meal": "9.17",
   "average_ticket": "383.75",
-  "average_price_per_meal": "19.19"
+  "average_price_per_meal": "19.19",
+  "pending_revenue": "0.00"
 }
 ```
 
@@ -306,7 +309,7 @@ Parâmetros comuns de período: `period` (`today` \| `week` \| `month` \| `last_
 }
 ```
 
-`GET /dashboard/by-buyer` — parâmetros extras: `buyer_type` (filtra a lista), `sort` (`revenue`, `quantity`, `sales_count`, `name`; padrão `revenue desc`). Somente faturamento: custos são gerais e não são atribuídos a compradores (`FINANCIAL-RULES.md` seção 6).
+`GET /dashboard/by-buyer` — parâmetros extras: `buyer_type` (filtra a lista), `sort` (`revenue`, `quantity`, `sales_count`, `name`; padrão `revenue desc`). Somente faturamento: custos são gerais e não são atribuídos a compradores (`FINANCIAL-RULES.md` seção 6). Cada item traz também `pending_revenue` (a receber do comprador no período).
 
 ```json
 {

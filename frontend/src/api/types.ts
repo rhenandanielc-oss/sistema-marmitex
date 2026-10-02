@@ -4,6 +4,8 @@ export type Money = string
 export type BuyerType = 'COMPANY' | 'CUSTOMER'
 export type CostType = 'CUSTO_DIARIO' | 'CUSTO_FIXO'
 export type PeriodPreset = 'today' | 'week' | 'month' | 'last_month' | 'custom'
+export type DeliveryType = 'RETIRADA' | 'ENTREGA' | 'OBRA'
+export type PaymentStatus = 'PAGO' | 'PENDENTE'
 
 export interface Page<T> {
   items: T[]
@@ -44,6 +46,7 @@ export interface Company {
   phone: string | null
   email: string | null
   location: string | null
+  default_delivery_type: DeliveryType
   billing_cycle: 'QUINZENAL' | 'MENSAL'
   start_date: string | null
   payment_date: string | null
@@ -58,6 +61,7 @@ export interface Customer {
   phone: string | null
   document: string | null
   location: string | null
+  default_delivery_type: DeliveryType
   billing_cycle: 'A_VISTA' | 'SEMANAL' | 'QUINZENAL' | 'MENSAL'
   start_date: string | null
   payment_date: string | null
@@ -88,6 +92,8 @@ export interface Sale {
   unit_price: Money
   quantity: number
   subtotal: Money
+  delivery_type: DeliveryType
+  payment_status: PaymentStatus
   notes: string | null
   version: number
   created_at: string
@@ -134,7 +140,8 @@ export interface HistoryItem {
   id: number
   date: string
   amount: Money
-  sale: { buyer: BuyerRef; quantity: number; unit_price: Money; subtotal: Money } | null
+  sale: { buyer: BuyerRef; quantity: number; unit_price: Money; subtotal: Money; delivery_type: DeliveryType;
+    payment_status: PaymentStatus } | null
   cost: { category: Ref; cost_type: CostType; amount: Money; description: string | null } | null
 }
 
@@ -143,6 +150,7 @@ export interface HistoryPage extends Page<HistoryItem> {
     sales_total: Money
     sales_quantity: number
     sales_count: number
+    sales_pending_total: Money
     costs_total: Money
     costs_count: number
   }
@@ -163,6 +171,7 @@ export interface Summary {
   average_cost_per_meal: Money | null
   average_ticket: Money | null
   average_price_per_meal: Money | null
+  pending_revenue: Money
 }
 
 export interface DailyItem {
@@ -192,6 +201,7 @@ export interface BuyerRevenue {
   average_ticket: Money | null
   average_price_per_meal: Money | null
   revenue_share_percent: Money | null
+  pending_revenue: Money
 }
 
 export interface ByBuyer {
@@ -225,6 +235,7 @@ export interface BuyerDashboard {
   average_ticket: Money | null
   average_price_per_meal: Money | null
   revenue_share_percent: Money | null
+  pending_revenue: Money
   daily: { date: string; revenue: Money; quantity: number; sales_count: number }[]
   recent_sales: Sale[]
   comparison: {

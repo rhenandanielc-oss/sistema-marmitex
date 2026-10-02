@@ -482,6 +482,11 @@ Decisões validadas com o negócio em 2026-10-02 (revisão da Fase 0):
 
 **Decisão (validada):** a data de pagamento continua sendo uma data alterável pelo ADMIN (não um dia fixo do mês). Empresas também têm **local/obra**.
 
+### 2026-10-02 — Recebimento e pagamento
+
+**Pedido do negócio:** ao cadastrar e ao lançar venda, informar se o cliente pagou e se é retirada, entrega ou obra, para separar os clientes.
+**Decisão:** cadastro (empresa e cliente) tem **recebimento padrão** (`RETIRADA`/`ENTREGA`/`OBRA`); cada venda tem **recebimento** (herdado do cadastro, alterável) e **pagamento** (`PENDENTE`/`PAGO`, botão "Marcar pago"). A situação de pagamento fica na venda (um cliente pode ter vendas pagas e pendentes). Receita conta todas as vendas; "A receber" é informativo (R-VEN-9 a R-VEN-11, F-19).
+
 ### 2026-10-02 — Períodos pré-definidos
 
 **Decisão:** hoje; semana = segunda-feira corrente até hoje; mês = dia 1 até hoje (padrão); mês anterior = mês fechado; personalizado. Resolvidos no backend.
@@ -571,6 +576,11 @@ Possíveis categorias:
 ---
 
 # ÚLTIMAS ALTERAÇÕES
+
+### 2026-10-02 — Recebimento e pagamento
+
+* Migration `0004_delivery_and_payment`; filtros por pagamento/recebimento em vendas, histórico e cadastros; "A receber" no dashboard geral, por comprador e no histórico; botão "Marcar pago".
+* Testes: backend 193, frontend 19, E2E 4 — todos passando.
 
 ### 2026-10-02 — Fase 4
 

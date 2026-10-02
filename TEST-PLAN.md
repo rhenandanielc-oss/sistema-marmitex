@@ -98,6 +98,15 @@ Teste de propriedade (Hypothesis): para listas aleatórias de vendas/custos/comp
 | VEN-12 | Excluir venda | 204; some de listagens e totais; auditoria `DELETE` |
 | VEN-13 | Manter comprador desativado após a venda ao editar só a quantidade | 200 (R-VEN-7) |
 
+### Recebimento e pagamento (`test_delivery_payment.py`)
+
+| # | Caso | Esperado |
+|---|---|---|
+| PAG-01 | Cadastro com recebimento padrão; filtro `delivery_type` | empresa padrão OBRA, cliente padrão RETIRADA; listas filtráveis |
+| PAG-02 | Venda sem `delivery_type` | herda o padrão do comprador; pode ser sobrescrito |
+| PAG-03 | Marcar venda como paga | `payment_status = PAGO`, subtotal inalterado, auditoria antes/depois |
+| PAG-04 | Totais | receita conta pagas + pendentes; `pending_revenue`/`sales_pending_total` = só pendentes; filtros por pagamento e recebimento |
+
 ## 4. Custos
 
 | # | Caso | Esperado |
@@ -174,11 +183,12 @@ Teste de propriedade (Hypothesis): para listas aleatórias de vendas/custos/comp
 | FE-06 | Nenhum cálculo financeiro no frontend (revisão de código + teste: valores exibidos = valores da API simulada) |
 | FE-07 | Dashboard: filtros na URL; estados vazio/carregando/erro; ranking de faturamento por empresa |
 | FE-09 | Tela de custos: totais do mês e coluna Acumulado atualizam após novo custo |
+| FE-10 | Venda: recebimento preenchido pelo cadastro do comprador; opção Pago/Pendente enviada à API |
 | FE-08 | Conflito de versão (409) mostra mensagem e recarrega o registro |
 
 ## 9. E2E (Playwright)
 
-1. Login → criar empresa → criar cliente avulso → lançar venda para cada um → ver no histórico → ver no dashboard (receita geral e por tipo).
+1. Login → criar empresa → criar cliente avulso → lançar venda para cada um → marcar venda como paga → ver no histórico → ver no dashboard (receita geral e por tipo).
 2. Cadastrar nova categoria de custo → lançar custo diário e fixo → tela de custos soma o acumulado → dashboard mostra custos, lucro geral, faturamento por empresa e custo médio iguais aos da API.
 3. Lançar venda esquecida com data de ontem → aparece no dia correto do gráfico.
 4. Desativar empresa → ela não aparece em novo lançamento, mas continua no histórico e no dashboard.

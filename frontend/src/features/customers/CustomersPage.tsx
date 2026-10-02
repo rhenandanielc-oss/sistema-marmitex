@@ -6,6 +6,7 @@ import { z } from 'zod'
 
 import { ApiError, errorMessage } from '../../api/client'
 import type { Customer } from '../../api/types'
+import { DELIVERY_OPTIONS, DeliveryBadge } from '../../components/badges'
 import { useToast } from '../../components/Toast'
 import { ActiveBadge, Button, Card, EmptyState, ErrorBox, Field, Input, Loading, Modal, PageHeader, Pagination,
   Select, Table, Td, Textarea, Th } from '../../components/ui'
@@ -18,6 +19,7 @@ const schema = z.object({
   phone: z.string().max(20),
   document: z.string().max(18),
   location: z.string().max(150),
+  default_delivery_type: z.enum(['RETIRADA', 'ENTREGA', 'OBRA']),
   billing_cycle: z.enum(['A_VISTA', 'SEMANAL', 'QUINZENAL', 'MENSAL']),
   start_date: z.string(),
   payment_date: z.string(),
@@ -29,6 +31,7 @@ const FIELDS = Object.keys(schema.shape)
 function toForm(c?: Customer): FormValues {
   return {
     name: c?.name ?? '', phone: c?.phone ?? '', document: c?.document ?? '', location: c?.location ?? '',
+    default_delivery_type: c?.default_delivery_type ?? 'RETIRADA',
     billing_cycle: c?.billing_cycle ?? 'MENSAL', start_date: c?.start_date ?? '', payment_date: c?.payment_date ?? '',
     notes: c?.notes ?? '',
   }
@@ -75,11 +78,15 @@ function CustomerForm({ customer, onClose }: { customer?: Customer; onClose: () 
         <Field label="CPF ou CNPJ" htmlFor="document" error={errors.document?.message} hint="Opcional.">
           <Input id="document" {...register('document')} />
         </Field>
-        <div className="col-span-2">
-          <Field label="Local / obra" htmlFor="location" error={errors.location?.message}>
-            <Input id="location" {...register('location')} />
-          </Field>
-        </div>
+        <Field label="Local / obra / endereço" htmlFor="location" error={errors.location?.message}>
+          <Input id="location" {...register('location')} />
+        </Field>
+        <Field label="Recebimento padrão" htmlFor="default_delivery_type" required
+          error={errors.default_delivery_type?.message} hint="Retira, recebe por entrega ou na obra.">
+          <Select id="default_delivery_type" {...register('default_delivery_type')}>
+            {DELIVERY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </Select>
+        </Field>
         <Field label="Ciclo de pagamento" htmlFor="billing_cycle" error={errors.billing_cycle?.message} required>
           <Select id="billing_cycle" {...register('billing_cycle')}>
             <option value="A_VISTA">À vista</option>
@@ -107,7 +114,8 @@ function CustomerForm({ customer, onClose }: { customer?: Customer; onClose: () 
 }
 
 export function CustomersPage() {
-  const r = useRegistry<Customer>('customers', 'Cliente')
+  const [delivery, setDelivery] = useState('')
+  const r = useRegistry<Customer>('customers', 'Cliente', { delivery_type: delivery })
   const [editing, setEditing] = useState<Customer | 'new' | null>(null)
   const data = r.list.data
 
@@ -124,6 +132,12 @@ export function CustomersPage() {
             <option value="true">Ativos</option>
             <option value="false">Inativos</option>
           </Select>
+          <Select aria-label="Recebimento" value={delivery} onChange={(e) => { setDelivery(e.target.value); r.setPage(1) }}>
+            <option value="">Todos os recebimentos</option>
+            <option value="RETIRADA">Retirada</option>
+            <option value="ENTREGA">Entrega</option>
+            <option value="OBRA">Obra</option>
+          </Select>
         </div>
         {r.list.isLoading && <Loading />}
         {r.list.isError && <ErrorBox message={errorMessage(r.list.error)} />}
@@ -132,7 +146,7 @@ export function CustomersPage() {
           <>
             <Table>
               <thead><tr>
-                <Th>Nome</Th><Th>Telefone</Th><Th>Local / obra</Th><Th>Ciclo</Th><Th>Início</Th><Th>Pagamento</Th>
+                <Th>Nome</Th><Th>Telefone</Th><Th>Local / obra</Th><Th>Recebimento</Th><Th>Ciclo</Th><Th>Início</Th><Th>Data pgto.</Th>
                 <Th>Situação</Th><Th className="text-right">Ações</Th>
               </tr></thead>
               <tbody className="divide-y divide-slate-100">
@@ -141,6 +155,7 @@ export function CustomersPage() {
                     <Td className="font-medium text-slate-900">{c.name}</Td>
                     <Td>{c.phone ?? '—'}</Td>
                     <Td>{c.location ?? '—'}</Td>
+                    <Td><DeliveryBadge type={c.default_delivery_type} /></Td>
                     <Td>{BILLING_CYCLE_LABELS[c.billing_cycle]}</Td>
                     <Td className="tabular">{formatDate(c.start_date)}</Td>
                     <Td className="tabular">{formatDate(c.payment_date)}</Td>

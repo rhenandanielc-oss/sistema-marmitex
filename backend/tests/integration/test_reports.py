@@ -31,6 +31,7 @@ def test_summary_matches_api_doc(api, ref):
         "average_cost_per_meal": "9.17",
         "average_ticket": "383.75",
         "average_price_per_meal": "19.19",
+        "pending_revenue": "1535.00",
     }
 
 
@@ -203,13 +204,14 @@ def test_history_all(api, ref):  # HIS-01
     assert dates == sorted(dates, reverse=True)
     sale = next(i for i in body["items"] if i["kind"] == "SALE" and i["date"] == "2026-09-15")
     assert sale["sale"] == {"buyer": {"type": "COMPANY", "id": ref.company_b["id"], "name": "Empresa B"},
-                            "quantity": 25, "unit_price": "20.00", "subtotal": "500.00"}
+                            "quantity": 25, "unit_price": "20.00", "subtotal": "500.00",
+                            "delivery_type": "OBRA", "payment_status": "PENDENTE"}
     assert sale["cost"] is None and sale["amount"] == "500.00"
     cost = next(i for i in body["items"] if i["kind"] == "COST" and i["date"] == "2026-09-05")
     assert cost["cost"]["category"]["name"] == "Aluguel"
     assert cost["cost"]["cost_type"] == "CUSTO_FIXO" and cost["sale"] is None
     assert body["totals"] == {"sales_total": "1535.00", "sales_quantity": 80, "sales_count": 4,
-                              "costs_total": "733.33", "costs_count": 3}
+                              "sales_pending_total": "1535.00", "costs_total": "733.33", "costs_count": 3}
 
 
 def test_history_buyer_filters_only_sales(api, ref):  # HIS-02

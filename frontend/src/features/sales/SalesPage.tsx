@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { ApiError, api, errorMessage } from '../../api/client'
 import { ENTRY_KEYS, useCompanyOptions, useCustomerOptions } from '../../api/hooks'
 import type { BuyerType, HistoryPage, Page, Sale } from '../../api/types'
+import { DELIVERY_OPTIONS, DeliveryBadge, PaymentBadge } from '../../components/badges'
 import { useToast } from '../../components/Toast'
 import { Badge, Button, Card, ConfirmDialog, EmptyState, ErrorBox, Field, Input, Loading, Modal, PageHeader,
   Pagination, Select, Table, Td, Th } from '../../components/ui'
@@ -21,10 +22,12 @@ const schema = z.object({
   quantity: z.string().trim().regex(/^\d+$/, 'Informe a quantidade (número inteiro).')
     .refine((v) => Number(v) > 0, 'A quantidade deve ser maior que zero.'),
   sale_date: z.string().min(1, 'Informe a data.'),
+  delivery_type: z.enum(['RETIRADA', 'ENTREGA', 'OBRA']),
+  payment_status: z.enum(['PAGO', 'PENDENTE']),
   notes: z.string().max(500),
 })
 type FormValues = z.infer<typeof schema>
-const SERVER_FIELDS = ['unit_price', 'quantity', 'sale_date', 'notes', 'buyer_type']
+const SERVER_FIELDS = ['unit_price', 'quantity', 'sale_date', 'notes', 'buyer_type', 'delivery_type', 'payment_status']
 
 function toBody(values: FormValues) {
   const id = Number(values.buyer_id)
@@ -35,6 +38,8 @@ function toBody(values: FormValues) {
     unit_price: normalizeMoneyInput(values.unit_price),
     quantity: Number(values.quantity),
     sale_date: values.sale_date,
+    delivery_type: values.delivery_type,
+    payment_status: values.payment_status,
     notes: values.notes.trim() || null,
   }
 }
@@ -54,11 +59,20 @@ function SaleFields({ form, sale, idPrefix }: {
 }) {
   const { register, control, setValue, formState: { errors } } = form
   const buyerType = useWatch({ control, name: 'buyer_type' }) as BuyerType
+  const buyerId = useWatch({ control, name: 'buyer_id' })
   const companies = useCompanyOptions(false)
   const customers = useCustomerOptions(false)
   const options = (buyerType === 'COMPANY' ? companies.data?.items : customers.data?.items) ?? []
   // Novos lançamentos: somente ativos. Na edição, mantém o comprador atual mesmo se desativado (R-VEN-7).
   const visible = options.filter((o) => o.is_active || (sale && sale.buyer.type === buyerType && sale.buyer.id === o.id))
+
+  // Ao escolher o comprador, o tipo de recebimento vem do cadastro (pode ser alterado nesta venda).
+  useEffect(() => {
+    if (sale || !buyerId) return
+    const buyer = options.find((o) => String(o.id) === buyerId)
+    if (buyer) setValue('delivery_type', buyer.default_delivery_type)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buyerId, buyerType])
 
   return (
     <div className="grid grid-cols-6 gap-4">
@@ -96,7 +110,21 @@ function SaleFields({ form, sale, idPrefix }: {
           <Input id={`${idPrefix}date`} type="date" max={todayIso()} {...register('sale_date')} />
         </Field>
       </div>
-      <div className="col-span-6">
+      <div className="col-span-2">
+        <Field label="Recebimento" htmlFor={`${idPrefix}delivery`} error={errors.delivery_type?.message} required>
+          <Select id={`${idPrefix}delivery`} {...register('delivery_type')}>
+            {DELIVERY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </Select>
+        </Field>
+      </div>
+      <fieldset className="col-span-1">
+        <legend className="mb-1 text-sm font-medium text-slate-700">Pagamento <span className="text-red-600">*</span></legend>
+        <div className="flex h-[38px] items-center gap-4">
+          <label className="flex items-center gap-1.5 text-sm"><input type="radio" value="PENDENTE" {...register('payment_status')} />Pendente</label>
+          <label className="flex items-center gap-1.5 text-sm"><input type="radio" value="PAGO" {...register('payment_status')} />Pago</label>
+        </div>
+      </fieldset>
+      <div className="col-span-3">
         <Field label="Observações" htmlFor={`${idPrefix}notes`} error={errors.notes?.message}>
           <Input id={`${idPrefix}notes`} {...register('notes')} />
         </Field>
@@ -116,7 +144,8 @@ function NewSaleCard() {
   const [formError, setFormError] = useState<string | null>(null)
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { buyer_type: 'COMPANY', buyer_id: '', unit_price: '', quantity: '', sale_date: todayIso(), notes: '' },
+    defaultValues: { buyer_type: 'COMPANY', buyer_id: '', unit_price: '', quantity: '', sale_date: todayIso(),
+      delivery_type: 'OBRA', payment_status: 'PENDENTE', notes: '' },
   })
   const { handleSubmit, setError, setValue, getValues, reset, control, formState: { isSubmitting, dirtyFields } } = form
   const buyerType = useWatch({ control, name: 'buyer_type' })
@@ -140,7 +169,7 @@ function NewSaleCard() {
     try {
       const sale = await api.post<Sale>('/sales', toBody(values))
       notify(`Venda registrada: ${sale.buyer.name} — ${formatInt(sale.quantity)} marmita(s), ${formatMoney(sale.subtotal)}.`)
-      reset({ ...getValues(), quantity: '', notes: '' }, { keepDefaultValues: true })
+      reset({ ...getValues(), quantity: '', notes: '', payment_status: 'PENDENTE' }, { keepDefaultValues: true })
       await invalidate()
     } catch (error) {
       const mapped = applyServerErrors(error, setError, SERVER_FIELDS) || mapBuyerError(error, setError)
@@ -170,7 +199,8 @@ function EditSaleModal({ sale, onClose }: { sale: Sale; onClose: () => void }) {
     resolver: zodResolver(schema),
     defaultValues: {
       buyer_type: sale.buyer_type, buyer_id: String(sale.buyer.id), unit_price: sale.unit_price.replace('.', ','),
-      quantity: String(sale.quantity), sale_date: sale.sale_date, notes: sale.notes ?? '',
+      quantity: String(sale.quantity), sale_date: sale.sale_date, delivery_type: sale.delivery_type,
+      payment_status: sale.payment_status, notes: sale.notes ?? '',
     },
   })
 
@@ -206,7 +236,8 @@ function EditSaleModal({ sale, onClose }: { sale: Sale; onClose: () => void }) {
 export function SalesPage() {
   const notify = useToast()
   const invalidate = useInvalidateEntries()
-  const [filters, setFilters] = useState({ start_date: todayIso(), end_date: todayIso(), buyer_type: '' })
+  const [filters, setFilters] = useState({ start_date: todayIso(), end_date: todayIso(), buyer_type: '', payment_status: '',
+    delivery_type: '' })
   const [page, setPage] = useState(1)
   const [editing, setEditing] = useState<Sale | null>(null)
   const [deleting, setDeleting] = useState<Sale | null>(null)
@@ -220,6 +251,16 @@ export function SalesPage() {
   const totals = useQuery({
     queryKey: ['history', 'sales-totals', filters],
     queryFn: () => api.get<HistoryPage>('/history', { ...filters, type: 'SALE', page_size: 1 }),
+  })
+  const markPaid = useMutation({
+    mutationFn: (sale: Sale) => api.patch<Sale>(`/sales/${sale.id}`, {
+      payment_status: sale.payment_status === 'PAGO' ? 'PENDENTE' : 'PAGO', version: sale.version,
+    }),
+    onSuccess: async (s) => {
+      notify(s.payment_status === 'PAGO' ? `Venda de ${s.buyer.name} marcada como paga.` : 'Venda marcada como pendente.')
+      await invalidate()
+    },
+    onError: async (error) => { notify(errorMessage(error), 'error'); await invalidate() },
   })
   const remove = useMutation({
     mutationFn: (sale: Sale) => api.delete(`/sales/${sale.id}`),
@@ -247,10 +288,26 @@ export function SalesPage() {
               <option value="CUSTOMER">Somente clientes avulsos</option>
             </Select>
           </Field>
+          <Field label="Pagamento" htmlFor="f-pay">
+            <Select id="f-pay" value={filters.payment_status} onChange={(e) => setFilter('payment_status', e.target.value)}>
+              <option value="">Pagas e pendentes</option>
+              <option value="PENDENTE">Pendentes</option>
+              <option value="PAGO">Pagas</option>
+            </Select>
+          </Field>
+          <Field label="Recebimento" htmlFor="f-delivery">
+            <Select id="f-delivery" value={filters.delivery_type} onChange={(e) => setFilter('delivery_type', e.target.value)}>
+              <option value="">Todos</option>
+              <option value="OBRA">Obra</option>
+              <option value="ENTREGA">Entrega</option>
+              <option value="RETIRADA">Retirada</option>
+            </Select>
+          </Field>
           {t && (
             <div className="ml-auto flex gap-6 text-sm">
               <div><div className="text-slate-500">Marmitas</div><div className="tabular font-semibold">{formatInt(t.sales_quantity)}</div></div>
               <div><div className="text-slate-500">Total</div><div className="tabular font-semibold">{formatMoney(t.sales_total)}</div></div>
+              <div><div className="text-slate-500">A receber</div><div className="tabular font-semibold text-amber-700">{formatMoney(t.sales_pending_total)}</div></div>
             </div>
           )}
         </div>
@@ -261,8 +318,8 @@ export function SalesPage() {
           <>
             <Table>
               <thead><tr>
-                <Th>Data</Th><Th>Comprador</Th><Th className="text-right">Qtd</Th><Th className="text-right">Preço</Th>
-                <Th className="text-right">Subtotal</Th><Th className="text-right">Ações</Th>
+                <Th>Data</Th><Th>Comprador</Th><Th>Recebimento</Th><Th className="text-right">Qtd</Th><Th className="text-right">Preço</Th>
+                <Th className="text-right">Subtotal</Th><Th>Pagamento</Th><Th className="text-right">Ações</Th>
               </tr></thead>
               <tbody className="divide-y divide-slate-100">
                 {sales.data.items.map((s) => (
@@ -273,10 +330,15 @@ export function SalesPage() {
                       <Badge tone={s.buyer_type === 'COMPANY' ? 'blue' : 'gray'}>{BUYER_TYPE_LABELS[s.buyer_type]}</Badge>
                       {s.notes && <div className="text-xs text-slate-500">{s.notes}</div>}
                     </Td>
+                    <Td><DeliveryBadge type={s.delivery_type} /></Td>
                     <Td className="tabular text-right">{formatInt(s.quantity)}</Td>
                     <Td className="tabular text-right">{formatMoney(s.unit_price)}</Td>
                     <Td className="tabular text-right font-medium">{formatMoney(s.subtotal)}</Td>
+                    <Td><PaymentBadge status={s.payment_status} /></Td>
                     <Td className="whitespace-nowrap text-right">
+                      <Button variant="ghost" onClick={() => markPaid.mutate(s)} disabled={markPaid.isPending}>
+                        {s.payment_status === 'PAGO' ? 'Desfazer pago' : 'Marcar pago'}
+                      </Button>
                       <Button variant="ghost" onClick={() => setEditing(s)}>Editar</Button>
                       <Button variant="ghost" className="text-red-600" onClick={() => setDeleting(s)}>Excluir</Button>
                     </Td>

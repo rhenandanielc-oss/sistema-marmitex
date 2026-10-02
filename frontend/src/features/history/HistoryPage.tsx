@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { api, errorMessage } from '../../api/client'
 import { useCategoryOptions, useCompanyOptions, useCustomerOptions } from '../../api/hooks'
 import type { HistoryPage as HistoryPageData } from '../../api/types'
+import { DeliveryBadge, PaymentBadge } from '../../components/badges'
 import { Kpi } from '../../components/Kpi'
 import { Badge, Button, Card, EmptyState, ErrorBox, Field, Input, Loading, PageHeader, Pagination, Select, Table, Td,
   Th } from '../../components/ui'
@@ -12,7 +13,8 @@ import { BUYER_TYPE_LABELS, COST_TYPE_LABELS, formatDate, formatInt, formatMoney
 /** Parâmetros da URL (pt-BR) → parâmetros da API. */
 const URL_KEYS = {
   tipo: 'type', inicio: 'start_date', fim: 'end_date', comprador: 'buyer_type', empresa: 'company_id',
-  cliente: 'customer_id', classificacao: 'cost_type', categoria: 'category_id', ordem: 'sort', direcao: 'order',
+  cliente: 'customer_id', classificacao: 'cost_type', categoria: 'category_id', pagamento: 'payment_status',
+  recebimento: 'delivery_type', ordem: 'sort', direcao: 'order',
   pagina: 'page',
 } as const
 type UrlKey = keyof typeof URL_KEYS
@@ -57,7 +59,7 @@ export function HistoryPage() {
     setSearch(next, { replace: true })
   }
   const data = history.data
-  const buyerFilter = !!(value('comprador') || value('empresa') || value('cliente'))
+  const buyerFilter = !!(value('comprador') || value('empresa') || value('cliente') || value('pagamento') || value('recebimento'))
 
   return (
     <>
@@ -110,15 +112,31 @@ export function HistoryPage() {
               {(categories.data?.items ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
           </Field>
+          <Field label="Pagamento" htmlFor="h-pay">
+            <Select id="h-pay" value={value('pagamento')} onChange={(e) => setParam('pagamento', e.target.value)}>
+              <option value="">Pagas e pendentes</option>
+              <option value="PENDENTE">Pendentes (a receber)</option>
+              <option value="PAGO">Pagas</option>
+            </Select>
+          </Field>
+          <Field label="Recebimento" htmlFor="h-delivery">
+            <Select id="h-delivery" value={value('recebimento')} onChange={(e) => setParam('recebimento', e.target.value)}>
+              <option value="">Todos</option>
+              <option value="OBRA">Obra</option>
+              <option value="ENTREGA">Entrega</option>
+              <option value="RETIRADA">Retirada</option>
+            </Select>
+          </Field>
         </div>
         {buyerFilter && (
-          <p className="mt-3 text-xs text-slate-500">Com filtro de comprador são exibidas apenas vendas — custos são gerais do restaurante.</p>
+          <p className="mt-3 text-xs text-slate-500">Com filtro de comprador, pagamento ou recebimento são exibidas apenas vendas — custos são gerais do restaurante.</p>
         )}
       </Card>
 
       {data && (
-        <div className="mb-6 grid grid-cols-4 gap-4">
-          <Kpi label="Total de vendas" value={formatMoney(data.totals.sales_total)} hint="Valor para fechamento/cobrança do filtro" />
+        <div className="mb-6 grid grid-cols-5 gap-4">
+          <Kpi label="Total de vendas" value={formatMoney(data.totals.sales_total)} hint="Valor do fechamento do filtro" />
+          <Kpi label="A receber" value={formatMoney(data.totals.sales_pending_total)} hint="Vendas pendentes de pagamento" />
           <Kpi label="Marmitas" value={formatInt(data.totals.sales_quantity)} hint={`${data.totals.sales_count} venda(s)`} />
           <Kpi label="Total de custos" value={formatMoney(data.totals.costs_total)} hint={`${data.totals.costs_count} custo(s)`} />
           <Kpi label="Lançamentos" value={formatInt(data.total)} />
@@ -134,7 +152,7 @@ export function HistoryPage() {
             <Table>
               <thead><tr>
                 <Th sorted={sort === 'date' ? order : null} onClick={() => toggleSort('date')}>Data</Th>
-                <Th>Lançamento</Th><Th>Descrição</Th><Th className="text-right">Qtd</Th><Th className="text-right">Preço</Th>
+                <Th>Lançamento</Th><Th>Descrição</Th><Th>Recebimento</Th><Th>Pagamento</Th><Th className="text-right">Qtd</Th><Th className="text-right">Preço</Th>
                 <Th className="text-right" sorted={sort === 'amount' ? order : null} onClick={() => toggleSort('amount')}>Valor</Th>
               </tr></thead>
               <tbody className="divide-y divide-slate-100">
@@ -149,6 +167,8 @@ export function HistoryPage() {
                         <span className="ml-2 text-xs text-slate-500">{COST_TYPE_LABELS[item.cost.cost_type]}</span>
                         {item.cost.description && <div className="text-xs text-slate-500">{item.cost.description}</div>}</>)}
                     </Td>
+                    <Td>{item.sale ? <DeliveryBadge type={item.sale.delivery_type} /> : '—'}</Td>
+                    <Td>{item.sale ? <PaymentBadge status={item.sale.payment_status} /> : '—'}</Td>
                     <Td className="tabular text-right">{item.sale ? formatInt(item.sale.quantity) : '—'}</Td>
                     <Td className="tabular text-right">{item.sale ? formatMoney(item.sale.unit_price) : '—'}</Td>
                     <Td className={`tabular text-right font-medium ${item.kind === 'COST' ? 'text-red-700' : ''}`}>

@@ -22,7 +22,7 @@ from app.services import audit
 from app.services.common import check_version, commit, flush, get_or_404, paginate, resolve_sort
 from app.services.validators import only_digits
 
-_REQUIRED = {"name", "billing_cycle", "cost_type"}
+_REQUIRED = {"name", "billing_cycle", "cost_type", "default_delivery_type"}
 
 
 def _apply(entity: Any, data: BaseModel) -> None:
@@ -93,7 +93,8 @@ def _company_conflicts(db: Session, name: str | None, cnpj: str | None, exclude_
 
 
 def list_companies(db: Session, *, q: str | None, active: bool | None, billing_cycle: str | None,
-                   sort: str | None, order: str, page: int, page_size: int) -> tuple[list[Company], int]:
+                   sort: str | None, order: str, page: int, page_size: int,
+                   delivery_type: str | None = None) -> tuple[list[Company], int]:
     stmt = select(Company)
     if q:
         like = f"%{q.strip()}%"
@@ -106,6 +107,8 @@ def list_companies(db: Session, *, q: str | None, active: bool | None, billing_c
         stmt = stmt.where(Company.is_active.is_(active))
     if billing_cycle:
         stmt = stmt.where(Company.billing_cycle == billing_cycle)
+    if delivery_type:
+        stmt = stmt.where(Company.default_delivery_type == delivery_type)
     return paginate(db, stmt, resolve_sort(sort, order, COMPANY_SORTS, "name"), Company.id, page, page_size)
 
 
@@ -148,7 +151,8 @@ def _customer_conflicts(db: Session, document: str | None, exclude_id: int | Non
 
 
 def list_customers(db: Session, *, q: str | None, active: bool | None, billing_cycle: str | None,
-                   sort: str | None, order: str, page: int, page_size: int) -> tuple[list[Customer], int]:
+                   sort: str | None, order: str, page: int, page_size: int,
+                   delivery_type: str | None = None) -> tuple[list[Customer], int]:
     stmt = select(Customer)
     if q:
         like = f"%{q.strip()}%"
@@ -158,6 +162,8 @@ def list_customers(db: Session, *, q: str | None, active: bool | None, billing_c
         stmt = stmt.where(Customer.is_active.is_(active))
     if billing_cycle:
         stmt = stmt.where(Customer.billing_cycle == billing_cycle)
+    if delivery_type:
+        stmt = stmt.where(Customer.default_delivery_type == delivery_type)
     return paginate(db, stmt, resolve_sort(sort, order, CUSTOMER_SORTS, "name"), Customer.id, page, page_size)
 
 

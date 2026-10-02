@@ -59,6 +59,17 @@ export const COST_TYPE_LABELS: Record<string, string> = {
   CUSTO_FIXO: 'Fixo',
 }
 
+export const DELIVERY_TYPE_LABELS: Record<string, string> = {
+  RETIRADA: 'Retirada',
+  ENTREGA: 'Entrega',
+  OBRA: 'Obra',
+}
+
+export const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  PAGO: 'Pago',
+  PENDENTE: 'Pendente',
+}
+
 export const BUYER_TYPE_LABELS: Record<string, string> = {
   COMPANY: 'Empresa',
   CUSTOMER: 'Cliente avulso',

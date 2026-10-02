@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Query
 from app.core import clock
 from app.core.permissions import AdminUser, DbSession
 from app.models import Company, Cost, Customer, Sale
-from app.models.enums import BuyerType, CostType
+from app.models.enums import BuyerType, CostType, DeliveryType, PaymentStatus
 from app.schemas.common import Ref, SortOrder
 from app.schemas.entries import BuyerRef, PeriodOut, SaleRead
 from app.schemas.reports import (
@@ -67,11 +67,13 @@ def get_history(
     start_date: date | None = None, end_date: date | None = None,
     buyer_type: BuyerType | None = None, company_id: int | None = None, customer_id: int | None = None,
     cost_type: CostType | None = None, category_id: int | None = None,
+    payment_status: PaymentStatus | None = None, delivery_type: DeliveryType | None = None,
     sort: str | None = None, order: SortOrder = "desc",
     page: Annotated[int, Query(ge=1)] = 1, page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> HistoryPage:
     f = HistoryFilters(type=type, start_date=start_date, end_date=end_date, buyer_type=buyer_type,
-                       company_id=company_id, customer_id=customer_id, cost_type=cost_type, category_id=category_id)
+                       company_id=company_id, customer_id=customer_id, cost_type=cost_type, category_id=category_id,
+                       payment_status=payment_status, delivery_type=delivery_type)
     result = history(db, f, sort, order, page, page_size)
     items = []
     for kind, entity in result.rows:
@@ -79,7 +81,9 @@ def get_history(
             s: Sale = entity
             items.append(HistoryItem(kind="SALE", id=s.id, date=s.sale_date, amount=s.subtotal, cost=None,
                                      sale=HistorySale(buyer=_buyer_ref(s), quantity=s.quantity,
-                                                      unit_price=s.unit_price, subtotal=s.subtotal)))
+                                                      unit_price=s.unit_price, subtotal=s.subtotal,
+                                                      delivery_type=s.delivery_type,
+                                                      payment_status=s.payment_status)))
         else:
             c: Cost = entity
             items.append(HistoryItem(kind="COST", id=c.id, date=c.cost_date, amount=c.amount, sale=None,
@@ -87,7 +91,8 @@ def get_history(
                                                       cost_type=c.cost_type, amount=c.amount,
                                                       description=c.description)))
     totals = HistoryTotals(sales_total=result.sales.revenue, sales_quantity=result.sales.quantity,
-                           sales_count=result.sales.sales_count, costs_total=result.costs.total,
+                           sales_count=result.sales.sales_count, sales_pending_total=result.sales_pending,
+                           costs_total=result.costs.total,
                            costs_count=result.costs.count)
     return HistoryPage(items=items, total=result.total, page=page, page_size=page_size,
                        pages=ceil(result.total / page_size) if result.total else 0, totals=totals)
@@ -115,7 +120,7 @@ def by_buyer(admin: AdminUser, db: DbSession, period: PeriodDep, buyer_type: Buy
         BuyerRevenueItem(buyer=BuyerRef(type=i.buyer_type, id=i.buyer_id, name=i.name), revenue=i.revenue,
                          quantity=i.quantity, sales_count=i.sales_count, average_ticket=i.average_ticket,
                          average_price_per_meal=i.average_price_per_meal,
-                         revenue_share_percent=i.revenue_share_percent)
+                         revenue_share_percent=i.revenue_share_percent, pending_revenue=i.pending_revenue)
         for i in b.items
     ]
     subtotals = {t: Subtotal(revenue=v.revenue, quantity=v.quantity, sales_count=v.sales_count)
@@ -148,6 +153,7 @@ def _buyer_dashboard(db: DbSession, buyer_type: str, buyer_id: int, period: Peri
                         payment_date=buyer.payment_date),
         revenue=r.revenue, quantity=r.quantity, sales_count=r.sales_count, average_ticket=r.average_ticket,
         average_price_per_meal=r.average_price_per_meal, revenue_share_percent=r.revenue_share_percent,
+        pending_revenue=r.pending_revenue,
         daily=[BuyerDailyItem(date=day, revenue=t.revenue, quantity=t.quantity, sales_count=t.sales_count)
                for day, t in d.daily],
         recent_sales=[SaleRead.from_model(s) for s in d.recent_sales],

@@ -5,7 +5,7 @@ const EMAIL = process.env.E2E_EMAIL ?? 'dono@marmitaria-exemplo.com.br'
 const PASSWORD = process.env.E2E_PASSWORD ?? 'senha-local-123'
 const RUN = Date.now().toString(36)
 
-const nbsp = (s: string | null) => (s ?? '').replace(/ /g, ' ')
+const nbsp = (s: string | null) => (s ?? '').replace(/\u00a0/g, ' ')
 
 function isoDaysAgo(days: number): string {
   const d = new Date()
@@ -71,6 +71,14 @@ test('cadastro, vendas para empresa e cliente, histórico e dashboard', async ({
   await page.getByRole('button', { name: 'Registrar venda' }).click()
   await expect(page.getByRole('status').last()).toContainText('110,00')
   await expect(page.getByRole('cell', { name: new RegExp(company) })).toBeVisible()
+
+  // Venda pendente → marcar como paga.
+  const saleRow = page.getByRole('row', { name: new RegExp(company) }).first()
+  await expect(saleRow).toContainText('Pendente')
+  await expect(saleRow).toContainText('Obra')
+  await saleRow.getByRole('button', { name: 'Marcar pago' }).click()
+  await expect(page.getByRole('status').last()).toContainText('marcada como paga')
+  await expect(page.getByRole('row', { name: new RegExp(company) }).first()).toContainText('Pago')
 
   // Histórico filtrado pela empresa = valor para cobrança.
   const companyId = (await apiGet(page, `/companies?q=${encodeURIComponent(company)}`)).items[0].id

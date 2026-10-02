@@ -8,7 +8,7 @@ from fastapi import APIRouter, Query, Response
 
 from app.core import clock
 from app.core.permissions import AdminUser, DbSession
-from app.models.enums import BuyerType, CostType
+from app.models.enums import BuyerType, CostType, DeliveryType, PaymentStatus
 from app.schemas.common import Page, SortOrder
 from app.schemas.entries import (
     CostCreate,
@@ -43,11 +43,13 @@ def _totals_out(t: CostTotals) -> CostTotalsOut:
 @sales.get("", response_model=Page[SaleRead], summary="Lista vendas")
 def list_sales(admin: AdminUser, db: DbSession, start_date: date | None = None, end_date: date | None = None,
                buyer_type: BuyerType | None = None, company_id: int | None = None, customer_id: int | None = None,
+               payment_status: PaymentStatus | None = None, delivery_type: DeliveryType | None = None,
                sort: str | None = None, order: SortOrder = "desc", page: PageNum = 1,
                page_size: PageSize = 20) -> Page[SaleRead]:
     items, total = svc.list_sales(db, start_date=start_date, end_date=end_date, buyer_type=buyer_type,
                                   company_id=company_id, customer_id=customer_id, sort=sort, order=order,
-                                  page=page, page_size=page_size)
+                                  page=page, page_size=page_size, payment_status=payment_status,
+                                  delivery_type=delivery_type)
     return Page.build([SaleRead.from_model(s) for s in items], total, page, page_size)
 
 

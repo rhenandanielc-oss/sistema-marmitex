@@ -65,6 +65,10 @@ Implementação: `backend/app/services/financial_engine.py` (funções puras) + 
 * **R-VEN-6** — Na edição, o subtotal é recalculado.
 * **R-VEN-7** — Ao editar uma venda existente, é permitido manter um comprador que tenha sido desativado depois da venda; trocar para outro comprador exige que o novo esteja ativo.
 * **R-VEN-8** — Vendas excluídas logicamente (`deleted_at` preenchido) não entram em nenhum cálculo.
+* **R-VEN-9** — Tipo de recebimento: `RETIRADA`, `ENTREGA` ou `OBRA`. Se omitido, usa o recebimento padrão do cadastro do comprador. Informativo (separação/filtros); não altera valores.
+* **R-VEN-10** — Situação de pagamento: `PENDENTE` (padrão) ou `PAGO`, alterável pelo ADMIN a qualquer momento (auditado).
+* **R-VEN-11** — A **receita reconhece todas as vendas**, pagas ou pendentes (regime de competência): o pagamento **não** altera receita, custos, lucro nem médias.
+* **F-19 — A receber** = Σ subtotal das vendas `PENDENTE` no período/filtro. Indicador informativo, exibido no dashboard geral, por comprador e no histórico.
 
 ## 4. Custo
 
@@ -185,5 +189,6 @@ Custos sem vendas (05/09 a 05/09): RECEITA = 0.00, CT = 300.00, LUCRO = −300.0
 | Data | Alteração | Autor |
 |---|---|---|
 | 2026-10-02 | Versão inicial das regras (Fase 0) | Claude Code |
+| 2026-10-02 | Tipo de recebimento (R-VEN-9), situação de pagamento (R-VEN-10/11) e indicador "A receber" (F-19) | Claude Code |
 | 2026-10-02 | Correção do negócio: custos são gerais — removidos rateio e lucro por comprador; por comprador apenas faturamento (seção 6). Adicionados custos acumulados (R-CUS-7, R-CUS-8) | Claude Code |
 | 2026-10-02 | Revisão com o negócio: clientes avulsos independentes das empresas; venda com comprador único; lucro líquido geral (empresas + clientes) e por comprador via rateio por marmita com maior resto (seção 6); data de venda/custo escolhida pelo ADMIN; período `last_month`; margem líquida; R-CUS-5 validada | Claude Code |

@@ -52,7 +52,7 @@ def get_sale(db: Session, sale_id: int) -> Sale:
 def create_sale(db: Session, data: SaleCreate, actor: CurrentUser) -> Sale:
     buyer_id = data.company_id if data.buyer_type == BuyerType.COMPANY else data.customer_id
     assert buyer_id is not None  # garantido pelo schema
-    _active_buyer(db, data.buyer_type, buyer_id)
+    buyer = _active_buyer(db, data.buyer_type, buyer_id)
     sale = Sale(
         buyer_type=data.buyer_type.value,
         company_id=data.company_id,
@@ -61,6 +61,8 @@ def create_sale(db: Session, data: SaleCreate, actor: CurrentUser) -> Sale:
         unit_price=data.unit_price,
         quantity=data.quantity,
         subtotal=sale_subtotal(data.unit_price, data.quantity),
+        delivery_type=(data.delivery_type.value if data.delivery_type else buyer.default_delivery_type),
+        payment_status=data.payment_status.value,
         notes=data.notes,
         created_by=actor.id,
         updated_by=actor.id,
@@ -109,6 +111,10 @@ def update_sale(db: Session, sale_id: int, data: SaleUpdate, actor: CurrentUser)
         sale.unit_price = data.unit_price
     if "quantity" in fields and data.quantity is not None:
         sale.quantity = data.quantity
+    if "delivery_type" in fields and data.delivery_type is not None:
+        sale.delivery_type = data.delivery_type.value
+    if "payment_status" in fields and data.payment_status is not None:
+        sale.payment_status = data.payment_status.value
     if "notes" in fields:
         sale.notes = data.notes
     sale.subtotal = sale_subtotal(sale.unit_price, sale.quantity)  # R-VEN-6
@@ -144,7 +150,8 @@ SALE_SORTS = {"sale_date": Sale.sale_date, "subtotal": Sale.subtotal, "quantity"
 
 def list_sales(db: Session, *, start_date: date | None, end_date: date | None, buyer_type: str | None,
                company_id: int | None, customer_id: int | None, sort: str | None, order: str, page: int,
-               page_size: int) -> tuple[list[Sale], int]:
+               page_size: int, payment_status: str | None = None,
+               delivery_type: str | None = None) -> tuple[list[Sale], int]:
     stmt = select(Sale).where(Sale.deleted_at.is_(None))
     if start_date:
         stmt = stmt.where(Sale.sale_date >= start_date)
@@ -156,6 +163,10 @@ def list_sales(db: Session, *, start_date: date | None, end_date: date | None, b
         stmt = stmt.where(Sale.company_id == company_id)
     if customer_id is not None:
         stmt = stmt.where(Sale.customer_id == customer_id)
+    if payment_status:
+        stmt = stmt.where(Sale.payment_status == payment_status)
+    if delivery_type:
+        stmt = stmt.where(Sale.delivery_type == delivery_type)
     order_by = resolve_sort(sort, order, SALE_SORTS, "sale_date")
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     rows = db.scalars(stmt.order_by(*order_by, Sale.id.desc()).offset((page - 1) * page_size)

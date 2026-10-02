@@ -80,6 +80,7 @@ Principais compradoras, com maior volume e faturamento quinzenal ou mensal.
 | phone | VARCHAR(20) | NULL |
 | email | VARCHAR(254) | NULL |
 | location | VARCHAR(150) | NULL — local/obra de entrega (texto livre; migration `0003_company_location`) |
+| default_delivery_type | VARCHAR(10) | NOT NULL DEFAULT 'OBRA', `CHECK (… IN ('RETIRADA','ENTREGA','OBRA'))` — recebimento padrão, preenche a venda |
 | billing_cycle | VARCHAR(20) | NOT NULL DEFAULT 'MENSAL', `CHECK (billing_cycle IN ('QUINZENAL','MENSAL'))` |
 | start_date | DATE | NULL — data de início do fornecimento (informada pelo ADMIN) |
 | payment_date | DATE | NULL — data de pagamento combinada (informada/atualizada pelo ADMIN) |
@@ -102,6 +103,7 @@ Entidade **independente** das empresas. São pessoas que compram por conta próp
 | phone | VARCHAR(20) | NULL |
 | document | VARCHAR(14) | NULL — CPF (11) ou CNPJ (14) somente dígitos, opcional, dígitos verificadores validados no backend |
 | location | VARCHAR(150) | NULL — local/obra de entrega (texto livre, ex.: "Obra Rua X") |
+| default_delivery_type | VARCHAR(10) | NOT NULL DEFAULT 'RETIRADA', `CHECK (… IN ('RETIRADA','ENTREGA','OBRA'))` — recebimento padrão |
 | billing_cycle | VARCHAR(20) | NOT NULL DEFAULT 'MENSAL', `CHECK (billing_cycle IN ('A_VISTA','SEMANAL','QUINZENAL','MENSAL'))` |
 | start_date | DATE | NULL — data de início (informada pelo ADMIN) |
 | payment_date | DATE | NULL — data de pagamento combinada (informada pelo ADMIN) |
@@ -137,6 +139,8 @@ Regra: `cost_type` não pode ser alterado se a categoria já possuir custos (nã
 | unit_price | NUMERIC(12,2) | NOT NULL, `CHECK (unit_price > 0)` |
 | quantity | INTEGER | NOT NULL, `CHECK (quantity > 0)` |
 | subtotal | NUMERIC(14,2) | NOT NULL, `CHECK (subtotal = unit_price * quantity)` |
+| delivery_type | VARCHAR(10) | NOT NULL DEFAULT 'OBRA', `CHECK (delivery_type IN ('RETIRADA','ENTREGA','OBRA'))` — padrão: o do cadastro do comprador |
+| payment_status | VARCHAR(10) | NOT NULL DEFAULT 'PENDENTE', `CHECK (payment_status IN ('PAGO','PENDENTE'))` |
 | notes | VARCHAR(500) | NULL |
 | deleted_at | TIMESTAMPTZ | NULL = ativa |
 | deleted_by | BIGINT FK → users | NULL |
@@ -159,6 +163,7 @@ CHECK (
 * `(company_id, sale_date) WHERE deleted_at IS NULL AND company_id IS NOT NULL`
 * `(customer_id, sale_date) WHERE deleted_at IS NULL AND customer_id IS NOT NULL`
 * `(buyer_type, sale_date) WHERE deleted_at IS NULL`
+* `(payment_status, sale_date) WHERE deleted_at IS NULL` (migration `0004_delivery_and_payment`)
 
 ### 3.7 `costs` (custos do restaurante)
 
@@ -287,6 +292,6 @@ ORDER BY day;
 
 * Ferramenta: Alembic, diretório `backend/alembic/versions/`.
 * Uma migration por mudança de esquema, com `upgrade()` e `downgrade()`.
-* Migrations: `0001_initial_schema` (todas as tabelas, constraints e índices), `0002_seed_cost_categories` e `0003_company_location`.
+* Migrations: `0001_initial_schema` (todas as tabelas, constraints e índices), `0002_seed_cost_categories`, `0003_company_location` e `0004_delivery_and_payment`.
 * Teste obrigatório: `alembic upgrade head` → `alembic downgrade base` → `alembic upgrade head` em banco vazio.
 * Nenhuma extensão é necessária: `gen_random_uuid()` é nativo no PostgreSQL ≥ 13.

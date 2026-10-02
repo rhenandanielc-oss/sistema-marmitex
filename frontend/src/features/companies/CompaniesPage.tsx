@@ -6,6 +6,7 @@ import { z } from 'zod'
 
 import { ApiError, errorMessage } from '../../api/client'
 import type { Company } from '../../api/types'
+import { DELIVERY_OPTIONS, DeliveryBadge } from '../../components/badges'
 import { useToast } from '../../components/Toast'
 import { ActiveBadge, Button, Card, EmptyState, ErrorBox, Field, Input, Loading, Modal, PageHeader, Pagination,
   Select, Table, Td, Textarea, Th } from '../../components/ui'
@@ -18,6 +19,7 @@ const schema = z.object({
   trade_name: z.string().max(150),
   cnpj: z.string().max(18),
   location: z.string().max(150),
+  default_delivery_type: z.enum(['RETIRADA', 'ENTREGA', 'OBRA']),
   contact_name: z.string().max(120),
   phone: z.string().max(20),
   email: z.string().max(254).refine((v) => v === '' || /^\S+@\S+\.\S+$/.test(v), 'E-mail inválido.'),
@@ -32,6 +34,7 @@ const FIELDS = Object.keys(schema.shape)
 function toForm(c?: Company): FormValues {
   return {
     name: c?.name ?? '', trade_name: c?.trade_name ?? '', cnpj: c?.cnpj ?? '', location: c?.location ?? '',
+    default_delivery_type: c?.default_delivery_type ?? 'OBRA',
     contact_name: c?.contact_name ?? '', phone: c?.phone ?? '', email: c?.email ?? '',
     billing_cycle: c?.billing_cycle ?? 'MENSAL', start_date: c?.start_date ?? '', payment_date: c?.payment_date ?? '',
     notes: c?.notes ?? '',
@@ -79,12 +82,16 @@ function CompanyForm({ company, onClose }: { company?: Company; onClose: () => v
         <Field label="CNPJ" htmlFor="cnpj" error={errors.cnpj?.message} hint="Com ou sem pontuação.">
           <Input id="cnpj" {...register('cnpj')} placeholder="00.000.000/0000-00" />
         </Field>
-        <div className="col-span-2">
-          <Field label="Local / obra" htmlFor="location" error={errors.location?.message}
-            hint="Onde as marmitas são entregues (ex.: Obra Av. Paulista, 1000).">
-            <Input id="location" {...register('location')} />
-          </Field>
-        </div>
+        <Field label="Local / obra" htmlFor="location" error={errors.location?.message}
+          hint="Onde as marmitas são entregues (ex.: Obra Av. Paulista, 1000).">
+          <Input id="location" {...register('location')} />
+        </Field>
+        <Field label="Recebimento padrão" htmlFor="default_delivery_type" required
+          error={errors.default_delivery_type?.message} hint="Vem preenchido ao lançar uma venda.">
+          <Select id="default_delivery_type" {...register('default_delivery_type')}>
+            {DELIVERY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </Select>
+        </Field>
         <Field label="Nome do contato" htmlFor="contact_name" error={errors.contact_name?.message}>
           <Input id="contact_name" {...register('contact_name')} />
         </Field>
@@ -119,7 +126,8 @@ function CompanyForm({ company, onClose }: { company?: Company; onClose: () => v
 
 export function CompaniesPage() {
   const [cycle, setCycle] = useState('')
-  const r = useRegistry<Company>('companies', 'Empresa', { billing_cycle: cycle })
+  const [delivery, setDelivery] = useState('')
+  const r = useRegistry<Company>('companies', 'Empresa', { billing_cycle: cycle, delivery_type: delivery })
   const [editing, setEditing] = useState<Company | 'new' | null>(null)
   const data = r.list.data
 
@@ -141,6 +149,12 @@ export function CompaniesPage() {
             <option value="QUINZENAL">Quinzenal</option>
             <option value="MENSAL">Mensal</option>
           </Select>
+          <Select aria-label="Recebimento" value={delivery} onChange={(e) => { setDelivery(e.target.value); r.setPage(1) }}>
+            <option value="">Todos os recebimentos</option>
+            <option value="OBRA">Obra</option>
+            <option value="ENTREGA">Entrega</option>
+            <option value="RETIRADA">Retirada</option>
+          </Select>
         </div>
         {r.list.isLoading && <Loading />}
         {r.list.isError && <ErrorBox message={errorMessage(r.list.error)} />}
@@ -149,7 +163,7 @@ export function CompaniesPage() {
           <>
             <Table>
               <thead><tr>
-                <Th>Nome</Th><Th>Local / obra</Th><Th>CNPJ</Th><Th>Ciclo</Th><Th>Início</Th><Th>Pagamento</Th>
+                <Th>Nome</Th><Th>Local / obra</Th><Th>Recebimento</Th><Th>CNPJ</Th><Th>Ciclo</Th><Th>Início</Th><Th>Data pgto.</Th>
                 <Th>Situação</Th><Th className="text-right">Ações</Th>
               </tr></thead>
               <tbody className="divide-y divide-slate-100">
@@ -158,6 +172,7 @@ export function CompaniesPage() {
                     <Td><div className="font-medium text-slate-900">{c.name}</div>
                       {c.trade_name && <div className="text-xs text-slate-500">{c.trade_name}</div>}</Td>
                     <Td>{c.location ?? '—'}</Td>
+                    <Td><DeliveryBadge type={c.default_delivery_type} /></Td>
                     <Td className="tabular">{formatCnpj(c.cnpj)}</Td>
                     <Td>{BILLING_CYCLE_LABELS[c.billing_cycle]}</Td>
                     <Td className="tabular">{formatDate(c.start_date)}</Td>

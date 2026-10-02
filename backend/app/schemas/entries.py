@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import Field, model_validator
 
-from app.models.enums import BuyerType, CostType
+from app.models.enums import BuyerType, CostType, DeliveryType, PaymentStatus
 from app.schemas.common import InputModel, MoneyOut, OutputModel, Ref
 from app.services.financial_engine import MAX_COST_AMOUNT, MAX_QUANTITY, MAX_UNIT_PRICE
 
@@ -40,6 +40,8 @@ class SaleCreate(InputModel):
     unit_price: Decimal = Field(**_UNIT_PRICE)
     quantity: int = Field(**_QUANTITY)
     sale_date: date | None = None
+    delivery_type: DeliveryType | None = None  # omitido = padrão do cadastro do comprador
+    payment_status: PaymentStatus = PaymentStatus.PENDENTE
     notes: str | None = Field(None, max_length=500)
 
     @model_validator(mode="after")
@@ -55,6 +57,8 @@ class SaleUpdate(InputModel):
     unit_price: Decimal | None = Field(None, **_UNIT_PRICE)
     quantity: int | None = Field(None, **_QUANTITY)
     sale_date: date | None = None
+    delivery_type: DeliveryType | None = None
+    payment_status: PaymentStatus | None = None
     notes: str | None = Field(None, max_length=500)
     version: int = Field(ge=1)
 
@@ -64,7 +68,7 @@ class SaleUpdate(InputModel):
             if self.company_id is not None and self.customer_id is not None:
                 raise ValueError("A venda deve ter um único comprador: empresa ou cliente.")
             _check_buyer(self.buyer_type, self.company_id, self.customer_id, partial=True)
-        for name in ("unit_price", "quantity", "sale_date"):
+        for name in ("unit_price", "quantity", "sale_date", "delivery_type", "payment_status"):
             if name in self.model_fields_set and getattr(self, name) is None:
                 raise ValueError(f"O campo {name} não pode ser vazio.")
         return self
@@ -84,6 +88,8 @@ class SaleRead(OutputModel):
     unit_price: MoneyOut
     quantity: int
     subtotal: MoneyOut
+    delivery_type: str
+    payment_status: str
     notes: str | None
     version: int
     created_at: datetime
@@ -95,7 +101,8 @@ class SaleRead(OutputModel):
         return cls(
             id=sale.id, sale_date=sale.sale_date, buyer_type=sale.buyer_type,
             buyer=BuyerRef(type=sale.buyer_type, id=party.id, name=party.name),
-            unit_price=sale.unit_price, quantity=sale.quantity, subtotal=sale.subtotal, notes=sale.notes,
+            unit_price=sale.unit_price, quantity=sale.quantity, subtotal=sale.subtotal,
+            delivery_type=sale.delivery_type, payment_status=sale.payment_status, notes=sale.notes,
             version=sale.version, created_at=sale.created_at,
             created_by=Ref(id=sale.creator.id, name=sale.creator.name) if sale.creator else None,
         )

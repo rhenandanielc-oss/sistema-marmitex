@@ -39,7 +39,7 @@ function BuyerPicker() {
 
 function SummaryKpis({ s }: { s: Summary }) {
   return (
-    <div className="mb-6 grid grid-cols-4 gap-4">
+    <div className="mb-6 grid grid-cols-3 gap-4 xl:grid-cols-5">
       <Kpi label="Lucro líquido" emphasis value={formatMoney(s.net_profit)} tone={isNegative(s.net_profit) ? 'negative' : 'positive'}
         hint={`Margem ${formatPercent(s.net_margin_percent)} · receita − todos os custos`} />
       <Kpi label="Receita total" value={formatMoney(s.revenue)}
@@ -52,6 +52,9 @@ function SummaryKpis({ s }: { s: Summary }) {
       <Kpi label="Custos diários" value={formatMoney(s.daily_costs)} />
       <Kpi label="Custo médio por marmita" value={formatMoney(s.average_cost_per_meal)}
         hint={s.average_cost_per_meal === null ? 'Sem marmitas no período' : 'Custos totais ÷ marmitas'} />
+      <Kpi label="A receber" value={formatMoney(s.pending_revenue)}
+        hint={<Link className="text-brand-700 hover:underline"
+          to={`/historico?tipo=SALE&pagamento=PENDENTE&inicio=${s.period.start_date}&fim=${s.period.end_date}`}>Ver vendas pendentes</Link>} />
       <Kpi label="Ticket médio" value={formatMoney(s.average_ticket)}
         hint={s.average_ticket === null ? 'Sem vendas no período' : `${formatInt(s.sales_count)} venda(s) · preço médio ${formatMoney(s.average_price_per_meal)}`} />
     </div>
@@ -73,7 +76,7 @@ function RevenueByBuyer({ data }: { data: ByBuyer }) {
         <div className="max-h-64 overflow-y-auto">
           <Table>
             <thead><tr><Th>Comprador</Th><Th className="text-right">Faturamento</Th><Th className="text-right">Marmitas</Th>
-              <Th className="text-right">Ticket médio</Th><Th className="text-right">%</Th></tr></thead>
+              <Th className="text-right">A receber</Th><Th className="text-right">%</Th></tr></thead>
             <tbody className="divide-y divide-slate-100">
               {data.items.map((i) => (
                 <tr key={`${i.buyer.type}-${i.buyer.id}`}>
@@ -84,7 +87,7 @@ function RevenueByBuyer({ data }: { data: ByBuyer }) {
                   </Td>
                   <Td className="tabular text-right">{formatMoney(i.revenue)}</Td>
                   <Td className="tabular text-right">{formatInt(i.quantity)}</Td>
-                  <Td className="tabular text-right">{formatMoney(i.average_ticket)}</Td>
+                  <Td className={`tabular text-right ${Number(i.pending_revenue) > 0 ? 'text-amber-700' : ''}`}>{formatMoney(i.pending_revenue)}</Td>
                   <Td className="tabular text-right">{formatPercent(i.revenue_share_percent)}</Td>
                 </tr>
               ))}
