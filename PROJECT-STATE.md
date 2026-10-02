@@ -10,38 +10,38 @@ O Claude Code deve atualizá-lo ao final de cada etapa significativa.
 
 # STATUS GERAL
 
-**Status:** NÃO INICIADO
+**Status:** EM ANDAMENTO
 
-**Fase atual:** Fase 0 — Arquitetura
+**Fase atual:** Fase 0 — Arquitetura (CONCLUÍDA). Próxima: Fase 1 — Banco, autenticação e cadastros.
 
-**Última atualização:** A preencher.
+**Última atualização:** 2026-10-02 (Sessão 1).
 
-**Último commit:** A preencher.
+**Último commit:** `docs: phase 0 architecture documentation` (branch `claude/sistema-marmitex-b2b-j8apnv`).
 
-**Próxima ação:** Criar a documentação arquitetural inicial.
+**Próxima ação:** Iniciar a Fase 1: estrutura `backend/` (FastAPI + SQLAlchemy + Alembic), `docker-compose.yml` com PostgreSQL 16, `.env.example`, migrations `0001_initial_schema` e `0002_seed_cost_categories` conforme `DATABASE.md`, usuários/autenticação/permissões conforme `API.md` seções 2 e 3.2–3.3, e CRUD de empresas, clientes e categorias (seções 3.4–3.6) com testes de integração.
 
 ---
 
 # FASE 0 — ARQUITETURA
 
-**Status:** PENDENTE
+**Status:** CONCLUÍDA (2026-10-02)
 
 ### Entregáveis
 
-* [ ] `ARCHITECTURE.md`
-* [ ] `DATABASE.md`
-* [ ] `API.md`
-* [ ] `FINANCIAL-RULES.md`
-* [ ] `DASHBOARD.md`
-* [ ] `TEST-PLAN.md`
+* [x] `ARCHITECTURE.md` — stack, camadas, estrutura de pastas, decisões D-01 a D-10, configuração, segurança
+* [x] `DATABASE.md` — tabelas, constraints, índices, seed de categorias, consultas de referência, migrations
+* [x] `API.md` — convenções (paginação, ordenação, erros, concorrência), matriz de permissões, todos os endpoints
+* [x] `FINANCIAL-RULES.md` — regras R-*/fórmulas F-01 a F-13, arredondamento, períodos, exemplos numéricos de referência
+* [x] `DASHBOARD.md` — filtros, KPIs, gráficos, dashboard por empresa
+* [x] `TEST-PLAN.md` — níveis de teste, cenários FIN-01 a FIN-22 e demais casos
 
 ### Testes
 
-Ainda não executados.
+Não aplicável (fase somente de documentação). Os valores esperados dos cenários financeiros em `TEST-PLAN.md` foram conferidos manualmente a partir de `FINANCIAL-RULES.md` seção 7.
 
 ### Decisões
 
-Nenhuma.
+Ver "Decisões técnicas" abaixo.
 
 ---
 
@@ -376,7 +376,42 @@ Pendente.
 
 # DECISÕES TÉCNICAS
 
-Nenhuma decisão registrada.
+As decisões arquiteturais completas estão em `ARCHITECTURE.md` seção 5. Abaixo, as decisões que afetam regras de negócio.
+
+### 2026-10-02 — Cliente pertence a uma empresa
+
+**Problema:** o MASTER-PROMPT cita empresas e clientes sem definir a relação.
+**Opções:** (a) clientes independentes; (b) cliente vinculado a uma empresa.
+**Decisão:** (b) — `customers.company_id` obrigatório; a venda exige que o cliente pertença à empresa (FK composta).
+**Motivo:** modelo B2B: a empresa contrata, o cliente é o colaborador/setor que recebe.
+**Impacto:** seletor de cliente no lançamento é filtrado pela empresa.
+
+### 2026-10-02 — Custos com filtro de empresa (rateio por marmita)
+
+**Problema:** custos não pertencem a empresas, mas o dashboard aceita filtro de empresa.
+**Opções:** (a) ignorar custos no filtro; (b) mostrar custos globais e lucro global; (c) ratear custos proporcionalmente à quantidade de marmitas; (d) ratear pela receita.
+**Decisão:** (c), exibindo também os custos globais. Lucro Líquido oficial continua sendo global; por empresa exibe-se "Lucro estimado (rateio por marmita)".
+**Motivo:** coerente com o indicador "custo médio por marmita"; evita mostrar lucro enganoso.
+**Impacto:** regras R-EMP-1 a R-EMP-6 e fórmulas F-11 a F-13 em `FINANCIAL-RULES.md`. **Pendente de validação pelo negócio.**
+
+### 2026-10-02 — Reconhecimento de custos na data do lançamento
+
+**Problema:** custos fixos mensais (ex.: aluguel) poderiam ser rateados por dia.
+**Decisão:** custo reconhecido integralmente em `cost_date`, sem rateio entre dias (R-CUS-5).
+**Motivo:** fórmula do MASTER-PROMPT (`CUSTOS_TOTAIS = fixos + diários` no período) e simplicidade.
+**Impacto:** visão diária/semanal pode mostrar lucro negativo no dia do lançamento de um custo fixo. **Pendente de validação pelo negócio.**
+
+### 2026-10-02 — Datas de lançamento
+
+**Decisão:** venda sempre com data do servidor (corrigível só por ADMIN, com auditoria); custo usa hoje por padrão, aceita data passada (GERENTE/ADMIN), nunca futura. Fuso `America/Sao_Paulo` configurável.
+
+### 2026-10-02 — Períodos pré-definidos
+
+**Decisão:** semana = segunda-feira corrente até hoje; mês = dia 1 até hoje; resolvidos no backend.
+
+### 2026-10-02 — Papéis
+
+**Decisão:** ADMIN, GERENTE, OPERADOR com matriz de permissões em `API.md` seção 2.
 
 Formato:
 
@@ -453,7 +488,10 @@ Formato:
 
 # RISCOS
 
-Nenhum risco registrado.
+* **cálculos:** decisões de rateio (R-EMP-3) e reconhecimento de custos (R-CUS-5) ainda não validadas pelo negócio — mudanças exigem atualizar `FINANCIAL-RULES.md` e os testes FIN-*.
+* **datas:** fuso horário incorreto no servidor geraria vendas no dia errado — mitigado por `APP_TIMEZONE` e teste FIN-20.
+* **concorrência:** edições simultâneas — mitigado por `version` (409).
+* **segurança:** token em `sessionStorage` é exposto em caso de XSS — mitigado por CSP e por não renderizar HTML de usuário.
 
 Possíveis categorias:
 
@@ -470,7 +508,12 @@ Possíveis categorias:
 
 # ÚLTIMAS ALTERAÇÕES
 
-Nenhuma.
+### 2026-10-02
+
+* Fase 0 concluída: documentação arquitetural criada.
+* Arquivos: `ARCHITECTURE.md`, `DATABASE.md`, `API.md`, `FINANCIAL-RULES.md`, `DASHBOARD.md`, `TEST-PLAN.md`, `PROJECT-STATE.md`.
+* Testes: não aplicável (sem código).
+* Resultado: base documental pronta para a Fase 1.
 
 Formato:
 
@@ -486,13 +529,13 @@ Formato:
 # TESTES DA ÚLTIMA SESSÃO
 
 **Comando:**
-A preencher.
+Nenhum (Fase 0 é somente documentação).
 
 **Resultado:**
-A preencher.
+Não aplicável.
 
 **Falhas:**
-A preencher.
+Nenhuma.
 
 ---
 
@@ -514,9 +557,15 @@ Ao iniciar:
 
 # LOG DE SESSÕES
 
-## Sessão 1
+## Sessão 1 — 2026-10-02
 
-**Status:** Não iniciada.
+**Status:** Concluída.
+
+* Lidos `MASTER-PROMPT.md` e `PROJECT-STATE.md`.
+* Executada somente a Fase 0 (Arquitetura), conforme a regra principal de execução.
+* Criados os 6 documentos de arquitetura.
+* Registradas decisões e riscos.
+* Próxima sessão: Fase 1.
 
 ---
 
