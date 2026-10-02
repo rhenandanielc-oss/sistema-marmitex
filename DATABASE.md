@@ -79,6 +79,7 @@ Principais compradoras, com maior volume e faturamento quinzenal ou mensal.
 | contact_name | VARCHAR(120) | NULL |
 | phone | VARCHAR(20) | NULL |
 | email | VARCHAR(254) | NULL |
+| location | VARCHAR(150) | NULL — local/obra de entrega (texto livre; migration `0003_company_location`) |
 | billing_cycle | VARCHAR(20) | NOT NULL DEFAULT 'MENSAL', `CHECK (billing_cycle IN ('QUINZENAL','MENSAL'))` |
 | start_date | DATE | NULL — data de início do fornecimento (informada pelo ADMIN) |
 | payment_date | DATE | NULL — data de pagamento combinada (informada/atualizada pelo ADMIN) |
@@ -286,6 +287,6 @@ ORDER BY day;
 
 * Ferramenta: Alembic, diretório `backend/alembic/versions/`.
 * Uma migration por mudança de esquema, com `upgrade()` e `downgrade()`.
-* Migration inicial: `0001_initial_schema` (todas as tabelas, constraints e índices) e `0002_seed_cost_categories`.
+* Migrations: `0001_initial_schema` (todas as tabelas, constraints e índices), `0002_seed_cost_categories` e `0003_company_location`.
 * Teste obrigatório: `alembic upgrade head` → `alembic downgrade base` → `alembic upgrade head` em banco vazio.
 * Nenhuma extensão é necessária: `gen_random_uuid()` é nativo no PostgreSQL ≥ 13.

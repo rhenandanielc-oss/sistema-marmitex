@@ -122,8 +122,8 @@ Login: auditado (`LOGIN_SUCCESS` / `LOGIN_FAILED`), limitado a 5 falhas por e-ma
 
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/companies` | paginada; filtros `q` (nome, nome fantasia, CNPJ), `active`, `billing_cycle`; ordenação `name`, `created_at` |
-| POST | `/companies` | `{name, trade_name?, cnpj?, contact_name?, phone?, email?, billing_cycle (QUINZENAL\|MENSAL), start_date?, payment_date?, notes?}` → `201` |
+| GET | `/companies` | paginada; filtros `q` (nome, nome fantasia, CNPJ, local/obra), `active`, `billing_cycle`; ordenação `name`, `created_at` |
+| POST | `/companies` | `{name, trade_name?, cnpj?, contact_name?, phone?, email?, location?, billing_cycle (QUINZENAL\|MENSAL), start_date?, payment_date?, notes?}` → `201` |
 | GET | `/companies/{id}` | detalhe |
 | PATCH | `/companies/{id}` | campos parciais + `version` |
 | POST | `/companies/{id}/activate` · `/companies/{id}/deactivate` | `{version}` → entidade atualizada |

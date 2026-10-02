@@ -97,7 +97,7 @@ def list_companies(db: Session, *, q: str | None, active: bool | None, billing_c
     stmt = select(Company)
     if q:
         like = f"%{q.strip()}%"
-        conditions = [Company.name.ilike(like), Company.trade_name.ilike(like)]
+        conditions = [Company.name.ilike(like), Company.trade_name.ilike(like), Company.location.ilike(like)]
         digits = only_digits(q)
         if digits:
             conditions.append(Company.cnpj.like(f"%{digits}%"))

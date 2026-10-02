@@ -25,6 +25,7 @@ class Company(IdMixin, TimestampMixin, VersionMixin, AuthorMixin, Base):
     contact_name: Mapped[str | None] = mapped_column(String(120))
     phone: Mapped[str | None] = mapped_column(String(20))
     email: Mapped[str | None] = mapped_column(String(254))
+    location: Mapped[str | None] = mapped_column(String(150))
     billing_cycle: Mapped[str] = mapped_column(String(20), nullable=False, default="MENSAL",
                                                server_default="MENSAL")
     start_date: Mapped[date | None] = mapped_column(Date)

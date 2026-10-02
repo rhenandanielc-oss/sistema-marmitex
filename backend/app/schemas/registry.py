@@ -31,6 +31,7 @@ class _CompanyFields(_RegistryIn):
     contact_name: str | None = Field(None, max_length=120)
     phone: str | None = Field(None, max_length=20)
     email: EmailStr | None = None
+    location: str | None = Field(None, max_length=150)
     start_date: date | None = None
     payment_date: date | None = None
     notes: str | None = Field(None, max_length=2000)
@@ -64,6 +65,7 @@ class CompanyRead(OutputModel):
     contact_name: str | None
     phone: str | None
     email: str | None
+    location: str | None
     billing_cycle: str
     start_date: date | None
     payment_date: date | None

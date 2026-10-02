@@ -12,8 +12,10 @@ VALID_CPF = "529.982.247-25"
 def test_create_and_edit_company(api, db):  # CAD-01
     created = api.ok(api.post("/companies", {
         "name": "Construtora Alfa", "cnpj": VALID_CNPJ, "billing_cycle": "QUINZENAL",
-        "start_date": "2026-03-01", "payment_date": "2026-10-05", "email": "obra@alfa.com"}), 201)
+        "start_date": "2026-03-01", "payment_date": "2026-10-05", "email": "obra@alfa.com",
+        "location": "Obra Av. Paulista, 1000"}), 201)
     assert created["cnpj"] == "11222333000181"
+    assert created["location"] == "Obra Av. Paulista, 1000"
     assert created["billing_cycle"] == "QUINZENAL"
     assert created["start_date"] == "2026-03-01"
     assert created["payment_date"] == "2026-10-05"
@@ -79,6 +81,8 @@ def test_search_companies(api):  # CAD-05
     assert api.ok(api.get("/companies", params={"q": "45.723"}))["total"] == 1
     names = [i["name"] for i in api.ok(api.get("/companies", params={"sort": "name", "order": "desc"}))["items"]]
     assert names == ["Empreiteira Beta", "Construtora Alfa"]
+    api.ok(api.post("/companies", {"name": "Gama Engenharia", "location": "Obra Shopping Norte"}), 201)
+    assert api.ok(api.get("/companies", params={"q": "shopping"}))["total"] == 1
 
 
 # ---------- Clientes avulsos ----------
