@@ -18,6 +18,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import AuthorMixin, Base, IdMixin, TimestampMixin, VersionMixin
 from app.models.company import Company
 from app.models.customer import Customer
+from app.models.user import User
 
 
 class Sale(IdMixin, TimestampMixin, VersionMixin, AuthorMixin, Base):
@@ -53,3 +54,4 @@ class Sale(IdMixin, TimestampMixin, VersionMixin, AuthorMixin, Base):
 
     company: Mapped[Company | None] = relationship(lazy="joined")
     customer: Mapped[Customer | None] = relationship(lazy="joined")
+    creator: Mapped[User | None] = relationship(lazy="joined", foreign_keys="Sale.created_by", viewonly=True)

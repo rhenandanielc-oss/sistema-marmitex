@@ -12,13 +12,13 @@ O Claude Code deve atualizá-lo ao final de cada etapa significativa.
 
 **Status:** EM ANDAMENTO
 
-**Fase atual:** Fase 0 — Arquitetura (CONCLUÍDA). Próxima: Fase 1 — Banco, autenticação e cadastros.
+**Fase atual:** Fases 0, 1 e 2 CONCLUÍDAS. Próxima: Fase 3 — API (histórico e dashboard).
 
 **Última atualização:** 2026-10-02 (Sessão 1).
 
-**Último commit:** `docs: revise phase 0 with business decisions` (branch `claude/sistema-marmitex-b2b-j8apnv`).
+**Último commit:** `feat: sales, costs and financial engine (phase 2)` (branch `claude/sistema-marmitex-b2b-j8apnv`).
 
-**Próxima ação:** Iniciar a Fase 1: estrutura `backend/` (FastAPI + SQLAlchemy + Alembic), `docker-compose.yml` com PostgreSQL 16, `.env.example`, migrations `0001_initial_schema` e `0002_seed_cost_categories` conforme `DATABASE.md`, usuários/autenticação (papel único ADMIN) conforme `API.md` seções 2 e 3.2–3.3, e CRUD de empresas, clientes avulsos e categorias (seções 3.4–3.6) com testes de integração.
+**Próxima ação:** Fase 3 — expor `/history` (consulta unificada com `totals`) e `/dashboard/*` (summary, daily, by-buyer, sales-by-company-daily, companies/{id}, customers/{id}) usando `financial_service.py`, com testes de integração HTTP (DSH-*, HIS-*).
 
 ---
 
@@ -114,50 +114,50 @@ Ver "Decisões técnicas" abaixo.
 
 # FASE 2 — VENDAS, CUSTOS E MOTOR FINANCEIRO
 
-**Status:** PENDENTE
+**Status:** CONCLUÍDA (2026-10-02)
 
 ### Vendas
 
-* [ ] comprador único (empresa OU cliente avulso)
-* [ ] preço unitário
-* [ ] quantidade
-* [ ] data escolhida pelo ADMIN (padrão hoje, nunca futura)
-* [ ] subtotal
-* [ ] validações
-* [ ] edição
-* [ ] auditoria
+* [x] comprador único (empresa OU cliente avulso)
+* [x] preço unitário
+* [x] quantidade
+* [x] data escolhida pelo ADMIN (padrão hoje, nunca futura)
+* [x] subtotal
+* [x] validações
+* [x] edição
+* [x] auditoria
 
 ### Custos
 
-* [ ] valor
-* [ ] categoria
-* [ ] tipo
-* [ ] data
-* [ ] validações
-* [ ] auditoria
+* [x] valor
+* [x] categoria
+* [x] tipo
+* [x] data
+* [x] validações
+* [x] auditoria
 
 ### Tipos de custo
 
-* [ ] `CUSTO_DIARIO`
-* [ ] `CUSTO_FIXO`
+* [x] `CUSTO_DIARIO`
+* [x] `CUSTO_FIXO`
 
 ### Categorias
 
 #### Diários
 
-* [ ] Ingredientes
-* [ ] Embalagens
-* [ ] Entregas
-* [ ] Equipamentos
-* [ ] Gasolina
+* [x] Ingredientes
+* [x] Embalagens
+* [x] Entregas
+* [x] Equipamentos
+* [x] Gasolina
 
 #### Fixos
 
-* [ ] Salários
-* [ ] Aluguel
-* [ ] Água
-* [ ] Energia elétrica
-* [ ] Gás
+* [x] Salários
+* [x] Aluguel
+* [x] Água
+* [x] Energia elétrica
+* [x] Gás
 
 ---
 
@@ -165,15 +165,15 @@ Ver "Decisões técnicas" abaixo.
 
 ### Regras
 
-* [ ] receita
-* [ ] custos totais
-* [ ] lucro líquido
-* [ ] custo médio por marmita
-* [ ] divisão por zero
-* [ ] período inclusivo
-* [ ] lucro líquido geral (empresas + clientes + todos os custos)
-* [ ] faturamento por empresa/cliente
-* [ ] custos acumulados
+* [x] receita
+* [x] custos totais
+* [x] lucro líquido
+* [x] custo médio por marmita
+* [x] divisão por zero
+* [x] período inclusivo
+* [x] lucro líquido geral (empresas + clientes + todos os custos)
+* [x] faturamento por empresa/cliente
+* [x] custos acumulados
 
 ### Fórmulas
 
@@ -187,22 +187,38 @@ Ver "Decisões técnicas" abaixo.
 
 ### Testes
 
-* [ ] dia
-* [ ] semana
-* [ ] mês
-* [ ] período personalizado
-* [ ] empresa
-* [ ] várias empresas
-* [ ] sem vendas
-* [ ] sem custos
-* [ ] sem vendas e sem custos
-* [ ] divisão por zero
-* [ ] somente custos fixos
-* [ ] somente custos diários
-* [ ] vendas sem custos
-* [ ] custos sem vendas
-* [ ] Σ faturamento por comprador = receita
-* [ ] último acumulado de custos = custos totais
+* [x] dia
+* [x] semana
+* [x] mês
+* [x] período personalizado
+* [x] empresa
+* [x] várias empresas
+* [x] sem vendas
+* [x] sem custos
+* [x] sem vendas e sem custos
+* [x] divisão por zero
+* [x] somente custos fixos
+* [x] somente custos diários
+* [x] vendas sem custos
+* [x] custos sem vendas
+* [x] Σ faturamento por comprador = receita
+* [x] último acumulado de custos = custos totais
+
+Todos os cenários FIN-01 a FIN-29 do `TEST-PLAN.md` estão cobertos (unitário + integração), mais teste de propriedade (Hypothesis, 200 exemplos).
+
+### Arquivos importantes
+
+* `backend/app/services/financial_engine.py` — fórmulas puras (F-01 a F-18, acumulados, divisão segura, ROUND_HALF_UP)
+* `backend/app/services/periods.py` — hoje/semana/mês/mês anterior/personalizado, período anterior, limite de 366 dias
+* `backend/app/repositories/financial_repo.py` — agregações SQL (somas por tipo, por dia, por comprador)
+* `backend/app/services/financial_service.py` — resumo geral, série diária, faturamento por comprador, detalhe de empresa/cliente (base do dashboard da Fase 3)
+* `backend/app/services/entries_service.py` — vendas e custos (validações, data escolhida pelo ADMIN, auditoria, acumulado)
+* `backend/app/api/v1/routes/entries.py` — `/sales`, `/costs` (com `running_total` e `totals`), `/costs/summary`
+
+### Testes
+
+`cd backend && pytest` — **161 testes, todos passando** (47 unitários + 114 de integração com PostgreSQL). `ruff check .` e `mypy app` sem problemas.
+
 
 ---
 
@@ -472,7 +488,12 @@ Resumo:
 
 # PROBLEMAS CONHECIDOS
 
-Nenhum problema registrado.
+### Build Docker não verificado
+
+**Descrição:** o ambiente da sessão não possui daemon Docker; `backend/Dockerfile` não foi construído.
+**Impacto:** possível ajuste na Fase 5.
+**Status:** aberto.
+**Solução:** executar `docker compose up -d --build` no notebook servidor e validar `/api/v1/health/ready`.
 
 Formato:
 
@@ -515,6 +536,12 @@ Possíveis categorias:
 
 # ÚLTIMAS ALTERAÇÕES
 
+### 2026-10-02 — Fases 1 e 2
+
+* Fase 1: backend FastAPI, modelos, migrations, autenticação (ADMIN), usuários, empresas, clientes avulsos (com data de início e de pagamento), categorias, auditoria, Docker.
+* Fase 2: vendas (comprador único, data escolhida pelo ADMIN), custos (acumulado e resumo do mês), motor financeiro e serviço financeiro.
+* Testes: 161 passando.
+
 ### 2026-10-02 — correção do negócio
 
 * Custos gerais: removidos rateio e lucro por empresa; por empresa/cliente somente faturamento.
@@ -551,13 +578,13 @@ Formato:
 # TESTES DA ÚLTIMA SESSÃO
 
 **Comando:**
-Nenhum (Fase 0 é somente documentação).
+`cd backend && pytest` (PostgreSQL 16 local; banco de teste `marmitex_test` recriado automaticamente; variável `TEST_DATABASE_URL`).
 
 **Resultado:**
-Não aplicável.
+161 passed. `ruff check .` OK. `mypy app` OK. Teste manual com `uvicorn` + `python -m app.cli create-admin`: login, cadastro, venda, custo e resumo de custos funcionando.
 
 **Falhas:**
-Nenhuma.
+Nenhuma. Observação: build da imagem Docker não executado nesta sessão (ambiente sem daemon Docker); `docker compose config` validado.
 
 ---
 
@@ -588,7 +615,9 @@ Ao iniciar:
 * Criados os 6 documentos de arquitetura.
 * Registradas decisões e riscos.
 * Revisão com o negócio aplicada (empresas × clientes avulsos, lucro por empresa, papel único ADMIN, data escolhida pelo ADMIN).
-* Próxima sessão: Fase 1.
+* Correção do negócio aplicada (somente faturamento por empresa; datas de início/pagamento; custos acumulados; 1–2 notebooks).
+* Fase 1 e Fase 2 implementadas e testadas (161 testes).
+* Próxima sessão: Fase 3.
 
 ---
 

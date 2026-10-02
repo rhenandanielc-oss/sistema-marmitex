@@ -17,6 +17,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import AuthorMixin, Base, IdMixin, TimestampMixin, VersionMixin
 from app.models.cost_category import CostCategory
+from app.models.user import User
 
 
 class Cost(IdMixin, TimestampMixin, VersionMixin, AuthorMixin, Base):
@@ -49,3 +50,4 @@ class Cost(IdMixin, TimestampMixin, VersionMixin, AuthorMixin, Base):
         foreign_keys=[category_id],
         viewonly=True,
     )
+    creator: Mapped[User | None] = relationship(lazy="joined", foreign_keys="Cost.created_by", viewonly=True)
