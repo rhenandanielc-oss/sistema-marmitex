@@ -47,58 +47,68 @@ Ver "Decisões técnicas" abaixo.
 
 # FASE 1 — BANCO, AUTENTICAÇÃO E CADASTROS
 
-**Status:** PENDENTE
+**Status:** CONCLUÍDA (2026-10-02)
 
 ### Banco
 
-* [ ] PostgreSQL
-* [ ] Docker
-* [ ] migrations
-* [ ] modelos
-* [ ] relacionamentos
-* [ ] constraints
-* [ ] índices
+* [x] PostgreSQL
+* [x] Docker (`backend/Dockerfile`, `docker-compose.yml` validado com `docker compose config`; build da imagem não executado — sem daemon Docker no ambiente da sessão)
+* [x] migrations
+* [x] modelos
+* [x] relacionamentos
+* [x] constraints
+* [x] índices
 
 ### Autenticação
 
-* [ ] usuários
-* [ ] login
-* [ ] logout
-* [ ] sessões/tokens
-* [ ] papel único ADMIN (`require_admin`)
-* [ ] auditoria
+* [x] usuários
+* [x] login
+* [x] logout
+* [x] sessões/tokens
+* [x] papel único ADMIN (`require_admin`)
+* [x] auditoria
 
 ### Cadastros
 
 #### Empresas (empreiteiras)
 
-* [ ] criar
-* [ ] editar
-* [ ] ativar
-* [ ] desativar
-* [ ] pesquisar
-* [ ] filtrar
+* [x] criar
+* [x] editar
+* [x] ativar
+* [x] desativar
+* [x] pesquisar
+* [x] filtrar
 
 #### Clientes avulsos (independentes)
 
-* [ ] criar
-* [ ] editar
-* [ ] ativar
-* [ ] desativar
-* [ ] pesquisar
-* [ ] filtrar
+* [x] criar
+* [x] editar
+* [x] ativar
+* [x] desativar
+* [x] pesquisar
+* [x] filtrar
 
 #### Categorias
 
-* [ ] criar
-* [ ] editar
-* [ ] ativar
-* [ ] desativar
-* [ ] pesquisar
+* [x] criar
+* [x] editar
+* [x] ativar
+* [x] desativar
+* [x] pesquisar
+
+### Arquivos importantes
+
+* `backend/app/models/` — modelos (users, user_sessions, companies, customers, cost_categories, sales, costs, audit_logs)
+* `backend/alembic/versions/0001_initial_schema.py`, `0002_seed_cost_categories.py`
+* `backend/app/core/` — config, db, clock, security (Argon2id, JWT+sessão, limite de login), permissions (`require_admin`), errors, logging
+* `backend/app/services/` — auth, user, registry (empresas/clientes/categorias), audit, validators (CPF/CNPJ)
+* `backend/app/api/v1/routes/` — health, auth, users, registry, audit
+* `backend/app/cli.py` — `python -m app.cli create-admin`
+* `.env.example`, `docker-compose.yml`, `backend/Dockerfile`
 
 ### Testes
 
-Pendente.
+`cd backend && pytest` — 45 testes (migrations up/down/up + modelos = migrations, autenticação, usuários, cadastros, erros, paginação, auditoria). Todos passando. `ruff check .` e `mypy app` sem problemas.
 
 ---
 
