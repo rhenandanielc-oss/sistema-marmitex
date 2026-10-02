@@ -10,7 +10,7 @@ RUN groupadd --system app && useradd --system --gid app --home /app app
 
 COPY pyproject.toml ./
 COPY app ./app
-RUN pip install --upgrade pip && pip install .
+RUN pip install --upgrade "pip>=26.2" "setuptools>=83" && pip install .
 
 COPY alembic.ini ./
 COPY alembic ./alembic

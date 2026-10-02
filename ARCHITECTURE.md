@@ -68,8 +68,9 @@ sistema-marmitex/
 ├── PROJECT-STATE.md
 ├── ARCHITECTURE.md  DATABASE.md  API.md  FINANCIAL-RULES.md  DASHBOARD.md  TEST-PLAN.md
 ├── .env.example
-├── docker-compose.yml            # desenvolvimento (db + backend + frontend)
-├── docker-compose.prod.yml       # produção (Fase 5)
+├── README.md  INSTALL.md  OPERACAO.md  GUIA-DO-ADMIN.md  AUDITORIA.md
+├── docker-compose.yml            # db + backend + frontend (Nginx :8080) + backup diário
+├── ops/                          # backup.sh, backup-loop.sh, restore.sh
 ├── backend/
 │   ├── Dockerfile
 │   ├── pyproject.toml
@@ -240,7 +241,9 @@ Os testes de integração usam um PostgreSQL de teste (serviço do Docker Compos
 | `APP_TIMEZONE` | `America/Sao_Paulo` | "hoje" do negócio |
 | `CORS_ORIGINS` | `http://localhost:5173` | origens permitidas |
 | `LOG_LEVEL` | `INFO` | logs |
-| `ENVIRONMENT` | `development` / `production` | ajustes (ex.: desativar `/api/docs` em produção se desejado) |
+| `ENVIRONMENT` | `development` / `production` | em produção: recusa iniciar com segredos de exemplo e desliga `/api/docs` |
+| `ENABLE_API_DOCS` | `true` / `false` | força ligar/desligar `/api/docs` (opcional) |
+| `BACKUP_HOUR` / `BACKUP_RETENTION_DAYS` | `23` / `30` | horário do backup diário e dias de retenção |
 | `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD` | — | criação do primeiro admin por comando (`python -m app.cli create-admin`) |
 | `VITE_API_BASE_URL` | `/api/v1` | base da API no frontend |
 
@@ -252,7 +255,8 @@ Os valores reais ficam somente em `.env` (ignorado pelo Git). `.env.example` con
 
 * Logs estruturados em JSON, com `request_id` (header `X-Request-ID`), método, rota, status e duração. Senhas e tokens nunca são logados.
 * Health checks: `GET /api/v1/health/live` (processo vivo) e `GET /api/v1/health/ready` (banco acessível).
-* Backup: `pg_dump` agendado (Fase 5), com procedimento de restauração documentado e testado.
+* Backup: serviço `backup` (imagem PostgreSQL) com `pg_dump -Fc` diário + ao iniciar, verificação do arquivo e retenção de 30 dias em `./backups`; restauração por `ops/restore.sh` (testada). Ver `OPERACAO.md`.
+* Logs dos contêineres com rotação (5 × 10 MB).
 * Migrations aplicadas no deploy (`alembic upgrade head`) antes de iniciar a nova versão.
 
 ---

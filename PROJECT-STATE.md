@@ -10,15 +10,15 @@ O Claude Code deve atualizá-lo ao final de cada etapa significativa.
 
 # STATUS GERAL
 
-**Status:** EM ANDAMENTO — falta somente a Fase 5
+**Status:** CONCLUÍDO (pendente apenas a validação do `docker compose up -d --build` no notebook servidor)
 
-**Fase atual:** Fases 0 a 4 CONCLUÍDAS (sistema utilizável). Próxima: Fase 5 — Auditoria e produção.
+**Fase atual:** Fases 0 a 5 CONCLUÍDAS.
 
 **Última atualização:** 2026-10-02 (Sessão 1).
 
-**Último commit:** `feat: frontend (phase 4)` (branch `claude/sistema-marmitex-b2b-j8apnv`).
+**Último commit:** `feat: production readiness (phase 5)` (branch `claude/sistema-marmitex-b2b-j8apnv`).
 
-**Próxima ação:** Fase 5 — validar `docker compose up -d --build` no notebook servidor, backup automático (`pg_dump`) e restauração testada, revisão de segurança/performance, documentação de instalação e uso para o ADMIN.
+**Próxima ação:** Instalar no notebook servidor seguindo `INSTALL.md`, confirmar os 4 serviços *healthy*, criar o administrador, acessar do segundo notebook e configurar a cópia externa dos backups. Melhorias futuras sugeridas: tela de auditoria, controle de recebimentos por fechamento.
 
 ---
 
@@ -404,34 +404,37 @@ _API concluída na Fase 3 (`GET /history`); tela na Fase 4._
 
 # FASE 5 — AUDITORIA E PRODUÇÃO
 
-**Status:** PENDENTE
+**Status:** CONCLUÍDA (2026-10-02) — exceto validação do build Docker no notebook (ver Problemas conhecidos)
 
 ### Auditoria
 
-* [ ] banco
-* [ ] API
-* [ ] frontend
-* [ ] autenticação
-* [ ] autorização
-* [ ] filtros
-* [ ] datas
-* [ ] valores monetários
-* [ ] arredondamento
-* [ ] concorrência
-* [ ] auditoria
-* [ ] performance
+* [x] banco
+* [x] API
+* [x] frontend
+* [x] autenticação
+* [x] autorização
+* [x] filtros
+* [x] datas
+* [x] valores monetários
+* [x] arredondamento
+* [x] concorrência
+* [x] auditoria
+* [x] performance
 
 ### Produção
 
-* [ ] Dockerfiles
-* [ ] configuração de produção
-* [ ] migrations
-* [ ] `.env.example`
-* [ ] health checks
-* [ ] logs
-* [ ] backup
-* [ ] documentação de instalação
-* [ ] documentação de deploy
+* [x] Dockerfiles (backend, frontend/Nginx) — build a validar no notebook servidor
+* [x] configuração de produção
+* [x] migrations
+* [x] `.env.example`
+* [x] health checks
+* [x] logs
+* [x] backup
+* [x] documentação de instalação
+* [x] documentação de deploy
+
+Relatório completo: **`AUDITORIA.md`**. Documentos: `README.md`, `INSTALL.md`, `OPERACAO.md`, `GUIA-DO-ADMIN.md`. Scripts: `ops/`.
+
 
 ---
 
@@ -515,15 +518,15 @@ Resumo:
 
 # SEGURANÇA
 
-* [ ] autenticação
-* [ ] autorização
-* [ ] proteção de endpoints
-* [ ] hash de senha
-* [ ] expiração de sessão
-* [ ] auditoria
-* [ ] `.env`
-* [ ] `.env.example`
-* [ ] nenhum secret no Git
+* [x] autenticação
+* [x] autorização
+* [x] proteção de endpoints
+* [x] hash de senha
+* [x] expiração de sessão
+* [x] auditoria
+* [x] `.env`
+* [x] `.env.example`
+* [x] nenhum secret no Git
 
 ---
 
@@ -531,10 +534,16 @@ Resumo:
 
 ### Build Docker não verificado
 
-**Descrição:** o ambiente da sessão não possui daemon Docker; `backend/Dockerfile` não foi construído.
-**Impacto:** possível ajuste na Fase 5.
+**Descrição:** o ambiente das sessões de desenvolvimento não possui daemon Docker; as imagens `backend` e `frontend` não foram construídas (o `docker compose config` é válido e tudo foi testado fora do Docker).
+**Impacto:** pode exigir um pequeno ajuste na primeira instalação.
 **Status:** aberto.
-**Solução:** executar `docker compose up -d --build` no notebook servidor e validar `/api/v1/health/ready`.
+**Solução:** executar `docker compose up -d --build` no notebook servidor e seguir `INSTALL.md` §7.
+
+### Agendamento do backup (BusyBox `date -d`)
+
+**Descrição:** horário fixo do backup depende do `date` do Alpine; não testado aqui.
+**Impacto:** se falhar, o backup ocorre a cada 24 h desde o início (plano B automático).
+**Status:** aberto — conferir `docker compose logs backup` na primeira semana.
 
 Formato:
 
@@ -576,6 +585,15 @@ Possíveis categorias:
 ---
 
 # ÚLTIMAS ALTERAÇÕES
+
+### 2026-10-02 — Fase 5
+
+* Validação de segurança na inicialização em produção; `/api/docs` desligado em produção.
+* Dependências atualizadas (React Router 7, Vite 8, Vitest 5; pip/setuptools na imagem) — 0 vulnerabilidades.
+* Backup diário + restauração (`ops/`), healthchecks, rotação de logs no `docker-compose.yml`.
+* Teste de concorrência real; teste de performance (~16 mil vendas, < 70 ms); otimização da série por empresa.
+* Documentação: `README.md`, `INSTALL.md`, `OPERACAO.md`, `GUIA-DO-ADMIN.md`, `AUDITORIA.md`.
+* Testes: backend 199, frontend 19, E2E 4 — todos passando.
 
 ### 2026-10-02 — Recebimento e pagamento
 
@@ -640,7 +658,7 @@ Formato:
 `cd backend && pytest` (PostgreSQL 16 local; banco de teste `marmitex_test` recriado automaticamente; variável `TEST_DATABASE_URL`).
 
 **Resultado:**
-Backend: 189 passed (`ruff`, `mypy` OK). Frontend: 18 passed (Vitest), typecheck/lint/build OK, 4 passed (Playwright E2E). `mypy app` OK. Teste manual com `uvicorn` + `python -m app.cli create-admin`: login, cadastro, venda, custo e resumo de custos funcionando.
+Backend: 199 passed (`ruff`, `mypy`, `pip-audit` OK). Frontend: 19 passed (Vitest), typecheck/lint/build OK, `npm audit` 0, 4 passed (Playwright E2E). `mypy app` OK. Teste manual com `uvicorn` + `python -m app.cli create-admin`: login, cadastro, venda, custo e resumo de custos funcionando.
 
 **Falhas:**
 Nenhuma. Observação: build da imagem Docker não executado nesta sessão (ambiente sem daemon Docker); `docker compose config` validado.
@@ -678,12 +696,32 @@ Ao iniciar:
 * Fase 1 e Fase 2 implementadas e testadas (161 testes).
 * Fase 3 implementada (histórico e dashboard na API).
 * Fase 4 implementada (frontend + E2E).
-* Próxima sessão: Fase 5 (produção).
+* Recebimento/pagamento implementados; Fase 5 concluída (auditoria, backup, documentação).
+* Próxima sessão: instalação no notebook servidor e ajustes pedidos pelo uso real.
 
 ---
 
 # CRITÉRIO DE CONCLUSÃO
 
 O projeto estará concluído quando todas as fases estiverem concluídas e os critérios do `MASTER-PROMPT.md` forem atendidos.
+
+Situação em 2026-10-02 (critérios do `MASTER-PROMPT.md` §26):
+
+* [x] banco funcionando
+* [x] migrations funcionando (`0001`–`0004`, sobe/desce testado)
+* [x] autenticação funcionando
+* [x] cadastros funcionando
+* [x] vendas funcionando
+* [x] custos funcionando
+* [x] cálculos financeiros testados
+* [x] histórico funcionando
+* [x] dashboard funcionando
+* [x] dashboard por empresa funcionando
+* [x] auditoria implementada
+* [x] testes passando (backend 199, frontend 19, E2E 4)
+* [x] documentação atualizada
+* [x] produção documentada (`INSTALL.md`, `OPERACAO.md`)
+* [x] `PROJECT-STATE.md` atualizado
+* [ ] build Docker validado no notebook servidor (primeira instalação)
 
 # FIM

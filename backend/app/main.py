@@ -21,9 +21,9 @@ def create_app() -> FastAPI:
         title="Marmitex B2B — API",
         description="Gestão de vendas B2B de marmitex e controle financeiro.",
         version="0.1.0",
-        docs_url="/api/docs",
-        redoc_url="/api/redoc",
-        openapi_url="/api/openapi.json",
+        docs_url="/api/docs" if settings.api_docs_enabled else None,
+        redoc_url="/api/redoc" if settings.api_docs_enabled else None,
+        openapi_url="/api/openapi.json" if settings.api_docs_enabled else None,
     )
     app.add_middleware(
         CORSMiddleware,

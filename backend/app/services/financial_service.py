@@ -116,11 +116,15 @@ def sales_by_company_daily(db: Session, period: Period, top: int = 10) -> Compan
     top_ids = [b.buyer_id for b in companies[:top]]
     by_company = financial_repo.daily_revenue_by_company(db, period.start_date, period.end_date)
     customers = financial_repo.daily_sales(db, period.start_date, period.end_date, buyer_type=BuyerType.CUSTOMER)
+    top_set = set(top_ids)
+    others_by_day: dict[date, Decimal] = {}
+    for (day, cid), value in by_company.items():  # uma única passada pelos agregados
+        if cid not in top_set:
+            others_by_day[day] = others_by_day.get(day, fe.ZERO) + value
     items = []
     for day in period.iter_days():
         values = {cid: by_company.get((day, cid), fe.ZERO) for cid in top_ids}
-        others = sum((v for (d, cid), v in by_company.items() if d == day and cid not in values), fe.ZERO)
-        items.append((day, values, others, customers.get(day, fe.SalesTotals()).revenue))
+        items.append((day, values, others_by_day.get(day, fe.ZERO), customers.get(day, fe.SalesTotals()).revenue))
     return CompanySeries(
         companies=[(b.buyer_id, b.name) for b in companies[:top]],
         has_other_companies=len(companies) > top,

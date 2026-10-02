@@ -1,11 +1,20 @@
-/// <reference types="vitest" />
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [react()],
   build: {
-    rollupOptions: { output: { manualChunks: { charts: ['recharts'], vendor: ['react', 'react-dom', 'react-router-dom'] } } },
+    // Uso local (1–2 notebooks): o bloco de gráficos tem ~156 kB compactado.
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (/node_modules\/(recharts|d3-|victory-vendor)/.test(id)) return 'charts'
+          if (/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) return 'vendor'
+          return undefined
+        },
+      },
+    },
   },
   server: {
     port: 5173,

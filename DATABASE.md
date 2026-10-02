@@ -208,7 +208,7 @@ Custos são gerais do restaurante (não pertencem a uma empresa ou cliente e nã
 
 Ações: `LOGIN_SUCCESS`, `LOGIN_FAILED`, `LOGOUT`, `CREATE`, `UPDATE`, `ACTIVATE`, `DEACTIVATE`, `DELETE` (lógica), `PASSWORD_CHANGE`, `ROLE_CHANGE`.
 
-* Tabela **somente inserção**: a aplicação não expõe atualização nem exclusão. Em produção, o usuário de banco da aplicação recebe apenas `INSERT, SELECT` nela.
+* Tabela **somente inserção**: a aplicação não expõe atualização nem exclusão. (O usuário do banco da aplicação é dono das tabelas; restringir a `INSERT, SELECT` exigiria um usuário separado para migrations — risco aceito, ver `AUDITORIA.md` R-6.)
 * Nunca gravar senha, hash ou token em `before_data`/`after_data`.
 
 Índices: `(occurred_at DESC)`, `(entity_type, entity_id)`, `(user_id, occurred_at DESC)`.

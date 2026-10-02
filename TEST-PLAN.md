@@ -194,7 +194,10 @@ Teste de propriedade (Hypothesis): para listas aleatórias de vendas/custos/comp
 4. Desativar empresa → ela não aparece em novo lançamento, mas continua no histórico e no dashboard.
 5. Logout → token invalidado; acesso direto a `/dashboard` redireciona para `/login`.
 
-## 10. Não funcionais (Fase 5)
+## 10. Não funcionais (Fase 5) — executados em 2026-10-02 (ver `AUDITORIA.md`)
+
+Resultados: performance < 70 ms de mediana com ~16 mil vendas; concorrência real (`tests/integration/test_concurrency.py`); `npm audit` e `pip-audit` sem vulnerabilidades na aplicação; varredura de segredos limpa; backup/restauração com totais idênticos; validação de produção (`tests/unit/test_config.py`).
+
 
 * Performance (uso em 1–2 notebooks): seed com 20 mil vendas em 2 anos; `/dashboard/summary`, `/dashboard/daily` (366 dias) e `/dashboard/by-buyer` < 500 ms.
 * Concorrência: duas edições simultâneas da mesma venda → uma 200 e uma 409.
