@@ -2,7 +2,7 @@
 
 # Plano de Testes
 
-Objetivo: garantir que cadastros, lançamentos, autenticação e, principalmente, os cálculos financeiros (lucro líquido geral e por empresa) estejam corretos e permaneçam corretos a cada mudança.
+Objetivo: garantir que cadastros, lançamentos, autenticação e, principalmente, os cálculos financeiros (lucro líquido geral, faturamento por comprador e custos acumulados) estejam corretos e permaneçam corretos a cada mudança.
 
 ---
 
@@ -10,7 +10,7 @@ Objetivo: garantir que cadastros, lançamentos, autenticação e, principalmente
 
 | Nível | Ferramenta | Escopo | Banco |
 |---|---|---|---|
-| Unitário backend | pytest | `financial_engine` (inclui rateio), `periods`, validadores (CNPJ, CPF, dinheiro) | não usa |
+| Unitário backend | pytest | `financial_engine`, `periods`, validadores (CNPJ, CPF, dinheiro) | não usa |
 | Integração backend | pytest + TestClient | rotas da API + serviços + repositórios + migrations | PostgreSQL de teste |
 | Migrations | pytest / script | `upgrade head` → `downgrade base` → `upgrade head` | PostgreSQL de teste |
 | Unitário frontend | Vitest + Testing Library | componentes, formatação pt-BR, formulários, rotas protegidas | API simulada (MSW) |
@@ -32,7 +32,7 @@ cd frontend && npm run lint && npm run typecheck
 cd frontend && npm run e2e                # Playwright
 ```
 
-Meta de cobertura: ≥ 90% em `financial_engine.py` e `periods.py` (100% dos ramos de divisão por zero e do rateio); ≥ 80% no backend como um todo.
+Meta de cobertura: ≥ 90% em `financial_engine.py` e `periods.py` (100% dos ramos de divisão por zero); ≥ 80% no backend como um todo.
 
 ---
 
@@ -42,37 +42,39 @@ Base de dados de referência: `FINANCIAL-RULES.md`, seção 7 (Empresas A e B, C
 
 | # | Cenário | Entrada | Resultado esperado |
 |---|---|---|---|
-| FIN-01 | Um dia | `custom` 30/09–30/09 | RECEITA 185.00; QTD 10; CT 33.33; LUCRO 151.67; CMM 3.33; Empresa A: custo alocado 33.33, lucro 151.67 |
+| FIN-01 | Um dia | `custom` 30/09–30/09 | RECEITA 185.00; QTD 10; CT 33.33; LUCRO 151.67; CMM 3.33 |
 | FIN-02 | Semana | `week` (28/09–30/09) | RECEITA 185.00; CT 33.33; LUCRO 151.67 |
 | FIN-03 | Mês (geral, tudo incluso) | `month` (01/09–30/09) | RECEITA 1535.00 (Empresas 1425.00, Clientes 110.00); QTD 80 (75/5); CD 433.33; CF 300.00; CT 733.33; LUCRO 801.67; MARGEM 52.23; CMM 9.17; TM 383.75; PM 19.19 |
 | FIN-04 | Período personalizado | 01/09–15/09 | RECEITA 1240.00; QTD 65; CT 700.00; LUCRO 540.00; CMM 10.77 |
 | FIN-05 | Período inclusivo nas bordas | 01/09–30/09 vs. 02/09–29/09 | RECEITA 1535.00 vs. 610.00 |
-| FIN-06 | Empresa | Empresa A, mês | RECEITA 925.00; QTD 50; TM 462.50; PM 18.50; custo alocado 458.33; LUCRO 466.67; margem 50.45 |
-| FIN-07 | Várias empresas / lucro por comprador | `by-buyer`, mês | A 458.33 / 466.67; B 229.17 / 270.83; Cliente X 45.83 / 64.17; subtotal Empresas 687.50 / 737.50; Σ custos alocados = 733.33; Σ lucros = 801.67 |
-| FIN-08 | Sem vendas | 05/09–05/09 | RECEITA 0.00; QTD 0; CT 300.00; LUCRO −300.00; CMM null; TM null; MARGEM null; `allocation_available=false`; não alocados 300.00 |
-| FIN-09 | Sem custos | 15/09–15/09 | RECEITA 500.00; CT 0.00; LUCRO 500.00; CMM 0.00; Empresa B custo alocado 0.00 |
+| FIN-06 | Empresa | Empresa A, mês | faturamento 925.00; QTD 50; NV 2; TM 462.50; PM 18.50; participação 60.26; sem campos de custo/lucro |
+| FIN-07 | Várias empresas / faturamento por comprador | `by-buyer`, mês | A 925.00 (60.26%); B 500.00 (32.57%); Cliente X 110.00 (7.17%); subtotal Empresas 1425.00 / 75; Clientes 110.00 / 5; Σ = RECEITA |
+| FIN-08 | Sem vendas | 05/09–05/09 | RECEITA 0.00; QTD 0; CT 300.00; LUCRO −300.00; CMM null; TM null; MARGEM null |
+| FIN-09 | Sem custos | 15/09–15/09 | RECEITA 500.00; CT 0.00; LUCRO 500.00; CMM 0.00 |
 | FIN-10 | Sem vendas e sem custos | 02/09–04/09 | totais 0.00; CMM/TM/MARGEM null; série diária com 3 dias zerados; ranking vazio |
-| FIN-11 | Divisão por zero | QTD = 0, NV = 0, RECEITA = 0 em todas as médias, margens, `revenue_share_percent`, rateio e `revenue_change_percent` | nenhum erro; campos `null` |
+| FIN-11 | Divisão por zero | QTD = 0, NV = 0, RECEITA = 0 em todas as médias, margens, `revenue_share_percent` e `revenue_change_percent` | nenhum erro; campos `null` |
 | FIN-12 | Somente custos fixos | Aluguel 300.00 + venda B (500.00, 25) | CF 300.00; CD 0.00; CT 300.00; CMM 12.00; LUCRO 200.00 |
 | FIN-13 | Somente custos diários | Ingredientes 400.00 + venda A (740.00, 40) | CD 400.00; CF 0.00; CT 400.00; CMM 10.00; LUCRO 340.00 |
-| FIN-14 | Vendas sem custos | período maior só com vendas | LUCRO = RECEITA; lucro de cada comprador = sua receita |
-| FIN-15 | Custos sem vendas | período maior só com custos | LUCRO = −CT; CMM null; todo CT não alocado |
+| FIN-14 | Vendas sem custos | período maior só com vendas | LUCRO = RECEITA |
+| FIN-15 | Custos sem vendas | período maior só com custos | LUCRO = −CT; CMM null |
 | FIN-16 | Arredondamento de médias | CT 10.00/QTD 3; CT 10.00/QTD 6; CT 0.05/QTD 2 | 3.33; 1.67; 0.03 (ROUND_HALF_UP) |
 | FIN-17 | Subtotal exato | 18.50 × 40; 0.01 × 10000; 9999.99 × 10000 | 740.00; 100.00; 99999900.00 |
-| FIN-18 | Exclusão lógica | venda/custo excluído | não entra em nenhum total nem no rateio |
+| FIN-18 | Exclusão lógica | venda/custo excluído | não entra em nenhum total nem no acumulado |
 | FIN-19 | Consistência da série | qualquer período | Σ diária de receita, quantidade, CD, CF = totais do resumo |
 | FIN-20 | Fuso horário | relógio às 23:30 de 30/09 em São Paulo (02:30 UTC de 01/10), venda sem data | `sale_date = 2026-09-30` |
-| FIN-21 | Lucro negativo | custos > receita | LUCRO negativo exato; lucros por comprador negativos somam o geral |
+| FIN-21 | Lucro negativo | custos > receita | LUCRO negativo exato |
 | FIN-22 | Precisão | 1.000 vendas de 0.01 | RECEITA 10.00 exato |
-| FIN-23 | Maior resto | CT 0.10; Empresa 1, Empresa 2 e Cliente 1 com 1 marmita cada | 0.04 / 0.03 / 0.03 (desempate: empresa de menor id); Σ = 0.10 |
-| FIN-24 | Só clientes avulsos | apenas vendas para clientes | lucro geral = Σ lucro dos clientes; subtotal Empresas zerado |
+| FIN-23 | Custos acumulados | listagem de custos do mês | `running_total` 400.00 → 700.00 → 733.33; último = CT; igual com ordenação desc e em qualquer página |
+| FIN-24 | Só clientes avulsos | apenas vendas para clientes | subtotal Empresas zerado; RECEITA = subtotal Clientes |
 | FIN-25 | Lançamento retroativo | ADMIN lança em 30/09 um custo/venda com data 10/09 | entra no dia 10/09 (série e totais do período que contém 10/09) |
 | FIN-26 | Mês anterior | `last_month` com hoje 30/09 | período 01/08–31/08 |
-| FIN-27 | Rateio estável ao filtrar | lucro da Empresa A em `by-buyer`, em `by-buyer?buyer_type=COMPANY` e em `/dashboard/companies/1` | mesmo valor (R-RAT-7) |
+| FIN-27 | Faturamento estável ao filtrar | faturamento da Empresa A em `by-buyer`, `by-buyer?buyer_type=COMPANY` e `/dashboard/companies/1` | mesmo valor |
+| FIN-28 | Série acumulada | `/dashboard/daily`, mês | `cumulative_costs` do último dia = 733.33; `cumulative_net_profit` do último dia = 801.67 |
+| FIN-29 | Resumo de custos do mês | `/costs/summary` após cada novo custo | total aumenta exatamente pelo valor do novo custo |
 
 Conferência de FIN-04: vendas 01/09 (740.00, 40) e 15/09 (500.00, 25) → 1240.00 e 65; custos 400.00 + 300.00 = 700.00; CMM = 700.00 ÷ 65 = 10.769… → 10.77.
 
-Teste de propriedade (Hypothesis): para listas aleatórias de vendas/custos/compradores, verificar `LUCRO = RECEITA − CT`, `CT = CF + CD`, `Σ CUSTO_ALOCADO_i = CT` (quando QTD > 0), `Σ LUCRO_i = LUCRO`, Σ diária = total, e que nenhuma combinação gera exceção de divisão.
+Teste de propriedade (Hypothesis): para listas aleatórias de vendas/custos/compradores, verificar `LUCRO = RECEITA − CT`, `CT = CF + CD`, `Σ RECEITA_i = RECEITA`, Σ diária = total, último acumulado = total, e que nenhuma combinação gera exceção de divisão.
 
 ---
 
@@ -91,7 +93,7 @@ Teste de propriedade (Hypothesis): para listas aleatórias de vendas/custos/comp
 | VEN-09 | Editar preço/quantidade/data | subtotal recalculado; `version` incrementada; auditoria com antes/depois |
 | VEN-10 | Editar com `version` antiga | 409 `VERSION_CONFLICT` |
 | VEN-11 | Trocar comprador de empresa para cliente | 200; constraint respeitada |
-| VEN-12 | Excluir venda | 204; some de listagens, totais e rateio; auditoria `DELETE` |
+| VEN-12 | Excluir venda | 204; some de listagens e totais; auditoria `DELETE` |
 | VEN-13 | Manter comprador desativado após a venda ao editar só a quantidade | 200 (R-VEN-7) |
 
 ## 4. Custos
@@ -111,7 +113,7 @@ Teste de propriedade (Hypothesis): para listas aleatórias de vendas/custos/comp
 
 | # | Caso | Esperado |
 |---|---|---|
-| CAD-01 | Criar/editar empresa válida com `billing_cycle` | 201/200; auditoria |
+| CAD-01 | Criar/editar empresa válida com `billing_cycle`, `start_date`, `payment_date` | 201/200; auditoria |
 | CAD-02 | Nome duplicado (case-insensitive) / CNPJ duplicado | 409 |
 | CAD-03 | CNPJ com dígito verificador inválido; `billing_cycle` inválido | 422 |
 | CAD-04 | Desativar/ativar empresa | some/volta em `?active=true` (lista do lançamento) |
@@ -155,8 +157,8 @@ Teste de propriedade (Hypothesis): para listas aleatórias de vendas/custos/comp
 | HIS-02 | Filtros `buyer_type`/empresa/cliente | só vendas do comprador |
 | HIS-03 | Filtros de data inclusivos e `totals` (fechamento quinzenal/mensal) | corretos |
 | DSH-01 | `period` inválido; `custom` sem datas; início > fim; > 366 dias na série | 422 |
-| DSH-02 | `/dashboard/companies/{id}` e `/dashboard/customers/{id}` | receita, qtd, ticket, custo alocado, lucro, vendas recentes, comparação |
-| DSH-03 | `by-buyer` | ordenado por lucro; `revenue_share_percent` soma ≈ 100 (tolerância de arredondamento) |
+| DSH-02 | `/dashboard/companies/{id}` e `/dashboard/customers/{id}` | faturamento, qtd, ticket, vendas recentes, comparação; sem custo/lucro |
+| DSH-03 | `by-buyer` | ordenado por faturamento; `revenue_share_percent` soma ≈ 100 (tolerância de arredondamento) |
 
 ## 8. Frontend
 
@@ -168,20 +170,21 @@ Teste de propriedade (Hypothesis): para listas aleatórias de vendas/custos/comp
 | FE-04 | Selects de lançamento só listam empresas/clientes/categorias ativos |
 | FE-05 | Formatação: `"1234.5"` → `R$ 1.234,50`; `"2026-09-01"` → `01/09/2026`; `null` → "—" |
 | FE-06 | Nenhum cálculo financeiro no frontend (revisão de código + teste: valores exibidos = valores da API simulada) |
-| FE-07 | Dashboard: filtros na URL; estados vazio/carregando/erro; ranking de lucro por empresa |
+| FE-07 | Dashboard: filtros na URL; estados vazio/carregando/erro; ranking de faturamento por empresa |
+| FE-09 | Tela de custos: totais do mês e coluna Acumulado atualizam após novo custo |
 | FE-08 | Conflito de versão (409) mostra mensagem e recarrega o registro |
 
 ## 9. E2E (Playwright)
 
 1. Login → criar empresa → criar cliente avulso → lançar venda para cada um → ver no histórico → ver no dashboard (receita geral e por tipo).
-2. Cadastrar nova categoria de custo → lançar custo diário e fixo → dashboard mostra custos, lucro geral, lucro por empresa e custo médio iguais aos da API.
+2. Cadastrar nova categoria de custo → lançar custo diário e fixo → tela de custos soma o acumulado → dashboard mostra custos, lucro geral, faturamento por empresa e custo médio iguais aos da API.
 3. Lançar venda esquecida com data de ontem → aparece no dia correto do gráfico.
 4. Desativar empresa → ela não aparece em novo lançamento, mas continua no histórico e no dashboard.
 5. Logout → token invalidado; acesso direto a `/dashboard` redireciona para `/login`.
 
 ## 10. Não funcionais (Fase 5)
 
-* Performance: seed com 100 mil vendas em 1 ano; `/dashboard/summary`, `/dashboard/daily` (366 dias) e `/dashboard/by-buyer` < 500 ms no p95.
+* Performance (uso em 1–2 notebooks): seed com 20 mil vendas em 2 anos; `/dashboard/summary`, `/dashboard/daily` (366 dias) e `/dashboard/by-buyer` < 500 ms.
 * Concorrência: duas edições simultâneas da mesma venda → uma 200 e uma 409.
 * Segurança: varredura de secrets no repositório; dependências sem vulnerabilidades críticas conhecidas; cabeçalhos de segurança presentes.
 * Backup: gerar dump, restaurar em banco limpo e conferir totais do dashboard.

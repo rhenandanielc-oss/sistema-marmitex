@@ -45,7 +45,7 @@ Princípios:
 | Dados remotos | TanStack React Query | cache, invalidação após mutações |
 | Formulários | React Hook Form + Zod | validação de UX (o backend revalida tudo) |
 | Gráficos | Recharts | |
-| Backend | Python 3.12, FastAPI | OpenAPI automático em `/api/docs` |
+| Backend | Python 3.11+ (imagem Docker 3.12), FastAPI | OpenAPI automático em `/api/docs` |
 | Validação | Pydantic v2 | |
 | ORM | SQLAlchemy 2.0 (modo síncrono) | endpoints síncronos executados no threadpool do FastAPI |
 | Driver | psycopg 3 | |
@@ -144,7 +144,7 @@ Fluxo de leitura do dashboard:
 1. `routes/dashboard.py` recebe `period`/`start_date`/`end_date`/`company_id`.
 2. `periods.resolve()` converte em intervalo fechado `[start, end]` usando a data do servidor.
 3. `repositories/dashboard_repo.py` executa agregações no PostgreSQL (somas por dia, por tipo, por empresa).
-4. `financial_engine` combina os agregados (lucro, custo médio, ticket médio, rateio) e aplica arredondamento.
+4. `financial_engine` combina os agregados (lucro, custo médio, ticket médio, participação, acumulados) e aplica arredondamento.
 5. A resposta é devolvida com valores monetários como strings decimais.
 
 ---
@@ -186,7 +186,10 @@ Cadastros são **desativados** (`is_active = false`), nunca apagados. Vendas e c
 Entidades editáveis possuem coluna `version` (inteiro). Toda edição envia a `version` lida; se divergir, a API responde `409 CONFLICT`. Evita que duas pessoas sobrescrevam a mesma venda/custo sem perceber.
 
 ### D-09 — Agregações no banco, fórmulas no motor financeiro
-Somas e agrupamentos são feitos em SQL (eficiente, com índices). As fórmulas derivadas (lucro, médias, rateio, arredondamento) ficam em `financial_engine.py` para serem testadas isoladamente e não haver duas implementações da mesma regra.
+Somas e agrupamentos são feitos em SQL (eficiente, com índices). As fórmulas derivadas (lucro, médias, percentuais, acumulados, arredondamento) ficam em `financial_engine.py` para serem testadas isoladamente e não haver duas implementações da mesma regra.
+
+### D-11 — Uso em 1 a 2 notebooks
+O sistema será usado em no máximo dois notebooks. Implantação alvo: um notebook "servidor" executa `docker compose` (PostgreSQL + backend + frontend servido por Nginx); o segundo notebook, se houver, acessa pelo navegador via rede local (`http://<ip-do-servidor>:8080`). Consequências: sem balanceamento, cache distribuído ou filas; limite de tentativas de login em memória; backup diário com `pg_dump` para pasta local + cópia externa (pendrive/nuvem) documentada na Fase 5.
 
 ### D-10 — Testes de integração com PostgreSQL real
 Os testes de integração usam um PostgreSQL de teste (serviço do Docker Compose ou do CI), com migrations aplicadas e transação revertida por teste.

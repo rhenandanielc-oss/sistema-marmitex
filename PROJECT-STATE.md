@@ -161,8 +161,9 @@ Pendente.
 * [ ] custo médio por marmita
 * [ ] divisão por zero
 * [ ] período inclusivo
-* [ ] lucro líquido geral (empresas + clientes)
-* [ ] lucro líquido por empresa/cliente (rateio por marmita, maior resto)
+* [ ] lucro líquido geral (empresas + clientes + todos os custos)
+* [ ] faturamento por empresa/cliente
+* [ ] custos acumulados
 
 ### Fórmulas
 
@@ -190,7 +191,8 @@ Pendente.
 * [ ] somente custos diários
 * [ ] vendas sem custos
 * [ ] custos sem vendas
-* [ ] rateio fecha no centavo (Σ lucros por comprador = lucro geral)
+* [ ] Σ faturamento por comprador = receita
+* [ ] último acumulado de custos = custos totais
 
 ---
 
@@ -213,7 +215,7 @@ Pendente.
 
 * [ ] resumo financeiro
 * [ ] vendas diárias
-* [ ] vendas e lucro por comprador (`/dashboard/by-buyer`)
+* [ ] faturamento por comprador (`/dashboard/by-buyer`)
 * [ ] quantidade diária
 * [ ] custos diários
 * [ ] lucro diário
@@ -387,11 +389,23 @@ Decisões validadas com o negócio em 2026-10-02 (revisão da Fase 0):
 **Decisão (validada):** empresas = empreiteiras (principais compradoras, maior volume, faturamento quinzenal/mensal); clientes = compradores avulsos, sem vínculo com empresas (ex.: trabalhador da mesma obra que paga mensalmente). Cada venda tem **um único comprador**: empresa **ou** cliente (`sales.buyer_type` + `CHECK`).
 **Impacto:** substitui a exigência "venda com empresa e cliente" do MASTER-PROMPT §6/§9; `billing_cycle` nos dois cadastros; dashboard por empresa não lista "clientes da empresa" (não há vínculo) — em vez disso existe dashboard por cliente avulso. Ver `DATABASE.md` 3.3, 3.4, 3.6.
 
-### 2026-10-02 — Lucro líquido geral e por empresa
+### 2026-10-02 — Lucro líquido somente geral; faturamento por empresa (corrigido)
 
-**Problema:** custos são do restaurante, mas o negócio quer lucro líquido por empresa.
-**Decisão (validada):** lucro líquido geral inclui tudo (empresas + clientes avulsos + todos os custos). Lucro de cada empresa/cliente = receita − custos rateados proporcionalmente à quantidade de marmitas (método do maior resto, fechando no centavo; Σ lucros por comprador = lucro geral).
-**Impacto:** `FINANCIAL-RULES.md` seção 6 (R-RAT-1 a R-RAT-9, F-12 a F-14); endpoint `/dashboard/by-buyer`.
+**Problema:** a revisão anterior previa lucro por empresa via rateio de custos.
+**Decisão (correção do negócio):** os custos são gerais do restaurante; **não há rateio nem lucro por comprador**. Lucro líquido só no nível geral (empresas + clientes + todos os custos). Por empresa/cliente apenas **faturamento** (receita, marmitas, vendas, ticket médio, preço médio, participação, variação).
+**Impacto:** `FINANCIAL-RULES.md` seção 6 (R-FAT-*, F-12 a F-18); `/dashboard/by-buyer` sem custo/lucro.
+
+### 2026-10-02 — Custos acumulados
+
+**Decisão (validada):** a cada novo custo, o total vai somando. Listagem de custos com coluna `running_total` (acumulado cronológico), totais do mês corrente sempre visíveis na tela de custos (`/costs/summary`) e séries `cumulative_costs`/`cumulative_net_profit` no dashboard (R-CUS-7, R-CUS-8).
+
+### 2026-10-02 — Data de início e data de pagamento nos cadastros
+
+**Decisão (validada):** empresas e clientes avulsos têm `start_date` (início do fornecimento) e `payment_date` (data de pagamento combinada), ambas opcionais e informadas pelo ADMIN. Campos informativos (não geram cobrança automática).
+
+### 2026-10-02 — Uso em 1 a 2 notebooks
+
+**Decisão:** implantação local simples (um notebook com Docker Compose; o outro acessa pela rede local). Metas de performance proporcionais. Ver `ARCHITECTURE.md` D-11.
 
 ### 2026-10-02 — Categorias de custo administráveis
 
@@ -470,7 +484,7 @@ Formato:
 
 # RISCOS
 
-* **cálculos:** o rateio por marmita (R-RAT-*) é uma convenção; se o negócio quiser outro critério (ex.: por receita), é preciso atualizar `FINANCIAL-RULES.md` e os testes FIN-*.
+* **disponibilidade:** o notebook servidor precisa estar ligado para o segundo notebook acessar; backup local + cópia externa obrigatórios (Fase 5).
 * **datas:** como o ADMIN escolhe a data, lançamentos em data errada são possíveis — mitigado por valor padrão = hoje, bloqueio de data futura e auditoria.
 * **datas:** fuso horário incorreto no servidor geraria vendas no dia errado — mitigado por `APP_TIMEZONE` e teste FIN-20.
 * **concorrência:** edições simultâneas — mitigado por `version` (409).
@@ -490,6 +504,13 @@ Possíveis categorias:
 ---
 
 # ÚLTIMAS ALTERAÇÕES
+
+### 2026-10-02 — correção do negócio
+
+* Custos gerais: removidos rateio e lucro por empresa; por empresa/cliente somente faturamento.
+* Cadastros de empresas e clientes com data de início e data de pagamento.
+* Custos acumulados (listagem, resumo do mês e séries do dashboard).
+* Implantação para 1–2 notebooks.
 
 ### 2026-10-02 — revisão com o negócio
 

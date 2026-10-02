@@ -80,6 +80,8 @@ Principais compradoras, com maior volume e faturamento quinzenal ou mensal.
 | phone | VARCHAR(20) | NULL |
 | email | VARCHAR(254) | NULL |
 | billing_cycle | VARCHAR(20) | NOT NULL DEFAULT 'MENSAL', `CHECK (billing_cycle IN ('QUINZENAL','MENSAL'))` |
+| start_date | DATE | NULL — data de início do fornecimento (informada pelo ADMIN) |
+| payment_date | DATE | NULL — data de pagamento combinada (informada/atualizada pelo ADMIN) |
 | notes | TEXT | NULL |
 | is_active | BOOLEAN | NOT NULL DEFAULT true |
 | version, created_at, updated_at, created_by, updated_by | | |
@@ -100,6 +102,8 @@ Entidade **independente** das empresas. São pessoas que compram por conta próp
 | document | VARCHAR(14) | NULL (CPF somente dígitos, opcional, validado se informado) |
 | location | VARCHAR(150) | NULL — local/obra de entrega (texto livre, ex.: "Obra Rua X") |
 | billing_cycle | VARCHAR(20) | NOT NULL DEFAULT 'MENSAL', `CHECK (billing_cycle IN ('A_VISTA','SEMANAL','QUINZENAL','MENSAL'))` |
+| start_date | DATE | NULL — data de início (informada pelo ADMIN) |
+| payment_date | DATE | NULL — data de pagamento combinada (informada pelo ADMIN) |
 | notes | TEXT | NULL |
 | is_active | BOOLEAN | NOT NULL DEFAULT true |
 | version, created_at, updated_at, created_by, updated_by | | |
@@ -157,7 +161,7 @@ CHECK (
 
 ### 3.7 `costs` (custos do restaurante)
 
-Custos são do restaurante como um todo (não pertencem a uma empresa ou cliente). A atribuição de custos a cada comprador é feita somente no cálculo, por rateio (ver `FINANCIAL-RULES.md`, seção 6).
+Custos são gerais do restaurante (não pertencem a uma empresa ou cliente e não são rateados). Entram apenas no lucro líquido geral.
 
 | Coluna | Tipo | Regras |
 |---|---|---|
@@ -239,7 +243,7 @@ FROM sales
 WHERE deleted_at IS NULL
   AND sale_date BETWEEN :start_date AND :end_date;
 
--- Receita e quantidade por comprador (base do rateio de custos e do lucro por comprador)
+-- Faturamento por comprador
 SELECT buyer_type, COALESCE(company_id, customer_id) AS buyer_id,
        SUM(subtotal) AS revenue, SUM(quantity) AS quantity, COUNT(*) AS sales_count
 FROM sales
@@ -253,6 +257,12 @@ FROM costs
 WHERE deleted_at IS NULL
   AND cost_date BETWEEN :start_date AND :end_date
 GROUP BY cost_type;
+
+-- Custos com acumulado (R-CUS-7)
+SELECT c.*, SUM(amount) OVER (ORDER BY cost_date, id) AS running_total
+FROM costs c
+WHERE deleted_at IS NULL
+  AND cost_date BETWEEN :start_date AND :end_date;
 
 -- Série diária completa (dias sem movimento = 0)
 SELECT d::date AS day,

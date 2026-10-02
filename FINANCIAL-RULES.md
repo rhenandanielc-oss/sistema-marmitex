@@ -15,7 +15,8 @@ Implementação: `backend/app/services/financial_engine.py` (funções puras) + 
 | **Empresa** | empreiteira; principal compradora, maior volume, faturamento quinzenal/mensal |
 | **Cliente avulso** | pessoa que compra por conta própria, independente das empresas (ex.: trabalhador da obra que paga mensalmente) |
 | **Comprador** | quem recebe a venda: uma empresa **ou** um cliente avulso (nunca os dois) |
-| **Custo** | despesa do restaurante (ingredientes, embalagens, aluguel...), não vinculada a comprador |
+| **Custo** | despesa geral do restaurante (ingredientes, embalagens, aluguel...), **não** vinculada a comprador |
+| **Faturamento** | receita (soma dos subtotais das vendas) |
 | **Categoria de custo** | tipo de custo cadastrável pelo ADMIN (ex.: "Embalagens"), classificado como diário ou fixo |
 
 ---
@@ -29,7 +30,7 @@ Implementação: `backend/app/services/financial_engine.py` (funções puras) + 
 | Tipo no banco | `NUMERIC(12,2)` (lançamentos) / `NUMERIC(14,2)` (subtotal) |
 | Tipo no JSON | string decimal com ponto: `"1234.50"` |
 | Entrada | aceita string ou número com no máximo 2 casas decimais; mais casas → erro `422` (não arredonda silenciosamente) |
-| Arredondamento | `ROUND_HALF_UP` para 2 casas, **somente** no resultado final de divisões (médias, percentuais). Somas e multiplicações por inteiro são exatas. O rateio de custos usa o método do maior resto (seção 6) para fechar exatamente no centavo |
+| Arredondamento | `ROUND_HALF_UP` para 2 casas, **somente** no resultado final de divisões (médias, percentuais). Somas e multiplicações por inteiro são exatas |
 | Quantidade | inteiro (marmitas) |
 
 ---
@@ -73,6 +74,8 @@ Implementação: `backend/app/services/financial_engine.py` (funções puras) + 
 * **R-CUS-4** — Data: o ADMIN escolhe; se omitida, o servidor usa hoje. Nunca futura.
 * **R-CUS-5** — Custos são reconhecidos **integralmente na data `cost_date`** (sem rateio entre dias). Ex.: aluguel de R$ 3.000,00 com data 05/09 aparece inteiro no dia 05/09, na semana e no mês que contêm esse dia. O lucro de um dia ou semana pode ficar negativo; a visão principal é o **mês fechado** (validado com o negócio em 2026-10-02).
 * **R-CUS-6** — Custos excluídos logicamente não entram em nenhum cálculo.
+* **R-CUS-7** — **Custos acumulados**: a cada novo custo registrado, o total é somado ao acumulado. Na listagem de custos, cada lançamento exibe o `ACUMULADO` = soma de todos os custos do período filtrado até ele, inclusive, em ordem cronológica (`cost_date`, depois `id`). O último acumulado é igual aos Custos Totais do período (F-05). Calculado no backend (função de janela `SUM() OVER`). Na série diária do dashboard, `cumulative_costs` do dia = soma de CT desde a data inicial até o dia, e `cumulative_net_profit` = soma de LUCRO desde a data inicial até o dia; o valor do último dia é igual ao total do período.
+* **R-CUS-8** — A tela de custos mostra sempre os totais do **mês corrente até agora** (diários, fixos e totais), atualizados a cada novo registro, mesmo que a análise principal seja o fechamento do mês.
 
 ---
 
@@ -106,24 +109,25 @@ Regras gerais:
 
 ---
 
-## 6. Lucro líquido por comprador (empresa e cliente avulso)
+## 6. Faturamento por comprador (empresa e cliente avulso)
 
-Custos são do restaurante e não pertencem a nenhum comprador. Para obter o lucro líquido de **cada empresa** (e de cada cliente avulso), os custos totais do período são **rateados proporcionalmente à quantidade de marmitas** compradas.
+Os custos são **gerais do restaurante**: não são atribuídos nem rateados entre empresas ou clientes. Por isso:
 
-* **R-RAT-1** — Base do rateio: todos os compradores com vendas em `P` (empresas **e** clientes avulsos), cada um com sua quantidade `QTD_i`. `Σ QTD_i = QTD`.
-* **R-RAT-2** — **F-12 — Custo alocado**: `CUSTO_ALOCADO_i = CT × QTD_i ÷ QTD`, calculado em centavos pelo **método do maior resto**:
-  1. calcular a cota exata em centavos de cada comprador;
-  2. atribuir a parte inteira (piso) de cada cota;
-  3. distribuir os centavos restantes, um a um, aos compradores com maior parte fracionária (desempate: empresas antes de clientes, depois menor `id`).
+* **R-FAT-1** — **Lucro líquido existe somente no nível geral** (F-06). Não há lucro por empresa nem por cliente.
+* **R-FAT-2** — Por comprador (cada empresa e cada cliente avulso) são calculados apenas indicadores de **faturamento**:
 
-  Assim `Σ CUSTO_ALOCADO_i = CT` **exatamente**, sem sobra ou falta de centavos.
-* **R-RAT-3** — **F-13 — Lucro líquido do comprador**: `LUCRO_i = RECEITA_i − CUSTO_ALOCADO_i`.
-* **R-RAT-4** — **F-14 — Margem do comprador**: `LUCRO_i ÷ RECEITA_i × 100`, arredondada; `null` se `RECEITA_i = 0`.
-* **R-RAT-5** — Consistência: `Σ LUCRO_i = LUCRO` (lucro líquido geral, F-06). Testado em todos os cenários.
-* **R-RAT-6** — Se `QTD = 0` (período sem vendas), não há como ratear: nenhum comprador recebe custo, `allocation_available = false` e todo o `CT` aparece como **custos não alocados**. Nesse caso `LUCRO = −CT`.
-* **R-RAT-7** — O rateio é sempre calculado sobre **todos** os compradores do período e só depois filtrado. Ou seja, o lucro de uma empresa é o mesmo no dashboard geral, no ranking e no dashboard da empresa.
-* **R-RAT-8** — Subtotal "Clientes avulsos": soma de receita, quantidade, custo alocado e lucro de todos os clientes avulsos.
-* **R-RAT-9** — Na série diária de um comprador, o rateio é feito **dia a dia** com o mesmo método (`CT_dia` entre os compradores do dia). Custos de dias sem nenhuma venda não são alocados naquele dia, então a soma diária pode diferir do valor do período; o valor oficial do período é sempre o do resumo (F-12/F-13), e a interface informa isso no gráfico.
+| Código | Indicador | Fórmula |
+|---|---|---|
+| **F-12** | Faturamento do comprador | `RECEITA_i = Σ subtotal` das vendas do comprador em `P` |
+| **F-13** | Marmitas do comprador | `QTD_i = Σ quantity` |
+| **F-14** | Vendas do comprador | `NV_i` = número de lançamentos |
+| **F-15** | Ticket médio do comprador | `RECEITA_i ÷ NV_i`; `null` se `NV_i = 0` |
+| **F-16** | Preço médio por marmita do comprador | `RECEITA_i ÷ QTD_i`; `null` se `QTD_i = 0` |
+| **F-17** | Participação no faturamento (%) | `RECEITA_i ÷ RECEITA × 100`; `null` se `RECEITA = 0` |
+| **F-18** | Variação vs. período anterior (%) | `(RECEITA_i − RECEITA_i_anterior) ÷ RECEITA_i_anterior × 100`; `null` se o anterior for 0 |
+
+* **R-FAT-3** — `Σ RECEITA_i = RECEITA` e `Σ QTD_i = QTD` (propriedade testada). Subtotais por tipo: "Empresas" e "Clientes avulsos".
+* **R-FAT-4** — O período anterior de F-18 tem a mesma quantidade de dias e termina no dia anterior a `data_inicial`.
 
 ---
 
@@ -140,41 +144,39 @@ Vendas:
 | 20/09 | Cliente X (id 1) | CUSTOMER | 22.00 | 5 | 110.00 |
 | 30/09 | Empresa A (id 1) | COMPANY | 18.50 | 10 | 185.00 |
 
-Custos:
+Custos (com acumulado, R-CUS-7):
 
-| Data | Categoria | Tipo | Valor |
-|---|---|---|---|
-| 01/09 | Ingredientes | CUSTO_DIARIO | 400.00 |
-| 05/09 | Aluguel | CUSTO_FIXO | 300.00 |
-| 30/09 | Embalagens | CUSTO_DIARIO | 33.33 |
+| Data | Categoria | Tipo | Valor | Acumulado |
+|---|---|---|---|---|
+| 01/09 | Ingredientes | CUSTO_DIARIO | 400.00 | 400.00 |
+| 05/09 | Aluguel | CUSTO_FIXO | 300.00 | 700.00 |
+| 30/09 | Embalagens | CUSTO_DIARIO | 33.33 | 733.33 |
 
 Resultado geral:
 
 * RECEITA = 740.00 + 500.00 + 110.00 + 185.00 = **1535.00** (Empresas 1425.00; Clientes avulsos 110.00)
 * QTD = **80** (Empresas 75; Clientes avulsos 5)
 * CD = 433.33; CF = 300.00; CT = **733.33**
-* LUCRO = 1535.00 − 733.33 = **801.67**
+* LUCRO LÍQUIDO = 1535.00 − 733.33 = **801.67**
 * CMM = 733.33 ÷ 80 = 9.166625 → **9.17**
 * NV = 4; TM = 1535.00 ÷ 4 = **383.75**
 * PM = 1535.00 ÷ 80 = 19.1875 → **19.19**
 * MARGEM = 801.67 ÷ 1535.00 × 100 = 52.226… → **52.23**
 
-Rateio (CT = 73333 centavos, QTD = 80):
+Faturamento por comprador:
 
-| Comprador | QTD_i | Cota exata (centavos) | Piso | Resto | +1? | Custo alocado | Receita | Lucro |
-|---|---|---|---|---|---|---|---|---|
-| Empresa A | 50 | 45833.125 | 45833 | 0.125 | | **458.33** | 925.00 | **466.67** |
-| Empresa B | 25 | 22916.5625 | 22916 | 0.5625 | ✔ | **229.17** | 500.00 | **270.83** |
-| Cliente X | 5 | 4583.3125 | 4583 | 0.3125 | | **45.83** | 110.00 | **64.17** |
-| **Total** | 80 | | 73332 | | 1 | **733.33** | 1535.00 | **801.67** |
+| Comprador | Faturamento | Marmitas | Vendas | Ticket médio | Preço médio | Participação |
+|---|---|---|---|---|---|---|
+| Empresa A | 925.00 | 50 | 2 | 462.50 | 18.50 | 60.26 |
+| Empresa B | 500.00 | 25 | 1 | 500.00 | 20.00 | 32.57 |
+| Cliente X | 110.00 | 5 | 1 | 110.00 | 22.00 | 7.17 |
+| **Total** | **1535.00** | **80** | **4** | | | |
 
-Empresa A: TM_A = 925.00 ÷ 2 = 462.50; PM_A = 18.50; margem = 466.67 ÷ 925.00 × 100 = 50.45.
-
-Período inclusivo: 30/09 a 30/09 → RECEITA = 185.00, QTD = 10, CT = 33.33, LUCRO = 151.67, CMM = 3.33; Empresa A recebe 33.33 de custo e lucra 151.67.
+Período inclusivo: 30/09 a 30/09 → RECEITA = 185.00, QTD = 10, CT = 33.33, LUCRO = 151.67, CMM = 3.33.
 
 Sem vendas e sem custos (02/09 a 04/09): RECEITA = 0.00, CT = 0.00, LUCRO = 0.00, CMM = `null`, TM = `null`, MARGEM = `null`.
 
-Custos sem vendas (05/09 a 05/09): RECEITA = 0.00, CT = 300.00, LUCRO = −300.00, CMM = `null`, `allocation_available = false`, custos não alocados = 300.00.
+Custos sem vendas (05/09 a 05/09): RECEITA = 0.00, CT = 300.00, LUCRO = −300.00, CMM = `null`.
 
 ---
 
@@ -183,4 +185,5 @@ Custos sem vendas (05/09 a 05/09): RECEITA = 0.00, CT = 300.00, LUCRO = −300.0
 | Data | Alteração | Autor |
 |---|---|---|
 | 2026-10-02 | Versão inicial das regras (Fase 0) | Claude Code |
+| 2026-10-02 | Correção do negócio: custos são gerais — removidos rateio e lucro por comprador; por comprador apenas faturamento (seção 6). Adicionados custos acumulados (R-CUS-7, R-CUS-8) | Claude Code |
 | 2026-10-02 | Revisão com o negócio: clientes avulsos independentes das empresas; venda com comprador único; lucro líquido geral (empresas + clientes) e por comprador via rateio por marmita com maior resto (seção 6); data de venda/custo escolhida pelo ADMIN; período `last_month`; margem líquida; R-CUS-5 validada | Claude Code |

@@ -123,12 +123,12 @@ Login: auditado (`LOGIN_SUCCESS` / `LOGIN_FAILED`), limitado a 5 falhas por e-ma
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/companies` | paginada; filtros `q` (nome, nome fantasia, CNPJ), `active`, `billing_cycle`; ordenação `name`, `created_at` |
-| POST | `/companies` | `{name, trade_name?, cnpj?, contact_name?, phone?, email?, billing_cycle (QUINZENAL\|MENSAL), notes?}` → `201` |
+| POST | `/companies` | `{name, trade_name?, cnpj?, contact_name?, phone?, email?, billing_cycle (QUINZENAL\|MENSAL), start_date?, payment_date?, notes?}` → `201` |
 | GET | `/companies/{id}` | detalhe |
 | PATCH | `/companies/{id}` | campos parciais + `version` |
 | POST | `/companies/{id}/activate` · `/companies/{id}/deactivate` | `{version}` → entidade atualizada |
 
-Validações: nome obrigatório (2–150), único (case-insensitive); CNPJ com 14 dígitos e dígitos verificadores válidos, único; e-mail válido.
+Validações: nome obrigatório (2–150), único (case-insensitive); CNPJ com 14 dígitos e dígitos verificadores válidos, único; e-mail válido; `start_date` (data de início do fornecimento) e `payment_date` (data de pagamento combinada) opcionais, informadas pelo ADMIN.
 
 ### 3.5 Clientes avulsos
 
@@ -137,12 +137,12 @@ Independentes das empresas.
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/customers` | paginada; filtros `q` (nome, telefone, local), `active`, `billing_cycle`; ordenação `name`, `created_at` |
-| POST | `/customers` | `{name, phone?, document?, location?, billing_cycle (A_VISTA\|SEMANAL\|QUINZENAL\|MENSAL), notes?}` → `201` |
+| POST | `/customers` | `{name, phone?, document?, location?, billing_cycle (A_VISTA\|SEMANAL\|QUINZENAL\|MENSAL), start_date?, payment_date?, notes?}` → `201` |
 | GET | `/customers/{id}` | detalhe |
 | PATCH | `/customers/{id}` | campos parciais + `version` |
 | POST | `/customers/{id}/activate` · `/customers/{id}/deactivate` | `{version}` |
 
-Validações: nome obrigatório (2–150); CPF com dígitos verificadores válidos e único, se informado.
+Validações: nome obrigatório (2–150); CPF com dígitos verificadores válidos e único, se informado; `start_date` e `payment_date` opcionais.
 
 ### 3.6 Categorias de custo (tipos de custo)
 
@@ -193,13 +193,29 @@ Resposta `SaleRead`:
 
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/costs` | paginada; filtros `start_date`, `end_date`, `cost_type`, `category_id`; ordenação `cost_date`, `amount`, `category` |
+| GET | `/costs` | paginada; filtros `start_date`, `end_date`, `cost_type`, `category_id`; ordenação `cost_date`, `amount`, `category` (padrão `cost_date desc`). Cada item traz `running_total` (acumulado, R-CUS-7) e a resposta traz `totals` |
+| GET | `/costs/summary` | totais do período (padrão: mês corrente até hoje): `{period, daily_costs, fixed_costs, total_costs, count}` — exibido na tela de custos e atualizado a cada novo registro (R-CUS-8) |
 | POST | `/costs` | `{category_id, cost_type, amount, cost_date?, description?}` → `201` |
 | GET | `/costs/{id}` | detalhe |
 | PATCH | `/costs/{id}` | campos parciais + `version` |
 | DELETE | `/costs/{id}` | exclusão lógica → `204` |
 
 Regras: `FINANCIAL-RULES.md` seção 4.
+
+Resposta de `GET /costs`:
+
+```json
+{
+  "items": [
+    { "id": 3, "cost_date": "2026-09-30", "category": { "id": 2, "name": "Embalagens" }, "cost_type": "CUSTO_DIARIO",
+      "amount": "33.33", "running_total": "733.33", "description": null, "version": 1 }
+  ],
+  "total": 3, "page": 1, "page_size": 20, "pages": 1,
+  "totals": { "daily_costs": "433.33", "fixed_costs": "300.00", "total_costs": "733.33", "count": 3 }
+}
+```
+
+`running_total` é sempre calculado em ordem cronológica crescente (`cost_date`, `id`) sobre todo o filtro aplicado, independentemente da ordenação/paginação exibida.
 
 ### 3.9 Histórico
 
@@ -248,8 +264,8 @@ Parâmetros comuns de período: `period` (`today` \| `week` \| `month` \| `last_
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/dashboard/summary` | indicadores gerais (empresas + clientes avulsos + todos os custos) |
-| GET | `/dashboard/daily` | série diária geral (receita, quantidade, custos diários, fixos, totais, lucro) |
-| GET | `/dashboard/by-buyer` | receita, quantidade, custo alocado e **lucro líquido por comprador** (ranking) |
+| GET | `/dashboard/daily` | série diária geral (receita, quantidade, custos diários, fixos, totais, custos acumulados, lucro) |
+| GET | `/dashboard/by-buyer` | **faturamento por comprador** (ranking de empresas e clientes) |
 | GET | `/dashboard/sales-by-company-daily` | série diária de receita por empresa (histórico de vendas por empresa) |
 | GET | `/dashboard/companies/{id}` | dashboard detalhado de uma empresa |
 | GET | `/dashboard/customers/{id}` | dashboard detalhado de um cliente avulso (mesma estrutura) |
@@ -271,9 +287,7 @@ Parâmetros comuns de período: `period` (`today` \| `week` \| `month` \| `last_
   "net_margin_percent": "52.23",
   "average_cost_per_meal": "9.17",
   "average_ticket": "383.75",
-  "average_price_per_meal": "19.19",
-  "allocation_available": true,
-  "unallocated_costs": "0.00"
+  "average_price_per_meal": "19.19"
 }
 ```
 
@@ -284,29 +298,29 @@ Parâmetros comuns de período: `period` (`today` \| `week` \| `month` \| `last_
   "period": { ... },
   "items": [
     { "date": "2026-09-01", "revenue": "740.00", "quantity": 40, "daily_costs": "400.00",
-      "fixed_costs": "0.00", "total_costs": "400.00", "net_profit": "340.00", "average_cost_per_meal": "10.00" }
+      "fixed_costs": "0.00", "total_costs": "400.00", "cumulative_costs": "400.00", "net_profit": "340.00",
+      "cumulative_net_profit": "340.00", "average_cost_per_meal": "10.00" }
   ]
 }
 ```
 
-`GET /dashboard/by-buyer` — parâmetros extras: `buyer_type` (filtra a lista, **não** a base do rateio — R-RAT-7), `sort` (`net_profit`, `revenue`, `quantity`; padrão `net_profit desc`).
+`GET /dashboard/by-buyer` — parâmetros extras: `buyer_type` (filtra a lista), `sort` (`revenue`, `quantity`, `sales_count`; padrão `revenue desc`). Somente faturamento: custos são gerais e não são atribuídos a compradores (`FINANCIAL-RULES.md` seção 6).
 
 ```json
 {
   "period": { ... },
-  "total_costs": "733.33",
-  "allocation_available": true,
+  "revenue": "1535.00",
   "items": [
     { "buyer": { "type": "COMPANY", "id": 1, "name": "Empresa A" }, "revenue": "925.00", "quantity": 50, "sales_count": 2,
-      "revenue_share_percent": "60.26", "allocated_costs": "458.33", "net_profit": "466.67", "net_margin_percent": "50.45" },
+      "average_ticket": "462.50", "average_price_per_meal": "18.50", "revenue_share_percent": "60.26" },
     { "buyer": { "type": "COMPANY", "id": 2, "name": "Empresa B" }, "revenue": "500.00", "quantity": 25, "sales_count": 1,
-      "revenue_share_percent": "32.57", "allocated_costs": "229.17", "net_profit": "270.83", "net_margin_percent": "54.17" },
+      "average_ticket": "500.00", "average_price_per_meal": "20.00", "revenue_share_percent": "32.57" },
     { "buyer": { "type": "CUSTOMER", "id": 1, "name": "Cliente X" }, "revenue": "110.00", "quantity": 5, "sales_count": 1,
-      "revenue_share_percent": "7.17", "allocated_costs": "45.83", "net_profit": "64.17", "net_margin_percent": "58.34" }
+      "average_ticket": "110.00", "average_price_per_meal": "22.00", "revenue_share_percent": "7.17" }
   ],
   "subtotals": {
-    "COMPANY":  { "revenue": "1425.00", "quantity": 75, "allocated_costs": "687.50", "net_profit": "737.50" },
-    "CUSTOMER": { "revenue": "110.00",  "quantity": 5,  "allocated_costs": "45.83",  "net_profit": "64.17" }
+    "COMPANY":  { "revenue": "1425.00", "quantity": 75, "sales_count": 3 },
+    "CUSTOMER": { "revenue": "110.00",  "quantity": 5,  "sales_count": 1 }
   }
 }
 ```
@@ -320,18 +334,16 @@ Parâmetros comuns de período: `period` (`today` \| `week` \| `month` \| `last_
 ```json
 {
   "period": { ... },
-  "buyer": { "type": "COMPANY", "id": 1, "name": "Empresa A", "is_active": true, "billing_cycle": "MENSAL" },
+  "buyer": { "type": "COMPANY", "id": 1, "name": "Empresa A", "is_active": true, "billing_cycle": "MENSAL",
+             "start_date": "2026-03-01", "payment_date": "2026-10-05" },
   "revenue": "925.00",
   "quantity": 50,
   "sales_count": 2,
   "average_ticket": "462.50",
   "average_price_per_meal": "18.50",
-  "allocated_costs": "458.33",
-  "net_profit": "466.67",
-  "net_margin_percent": "50.45",
-  "daily": [ { "date": "...", "revenue": "...", "quantity": 0, "sales_count": 0, "allocated_costs": "...", "net_profit": "..." } ],
+  "daily": [ { "date": "...", "revenue": "...", "quantity": 0, "sales_count": 0 } ],
   "recent_sales": [ /* últimas 20 vendas no período, SaleRead */ ],
-  "comparison": { "previous_period": { "start_date": "...", "end_date": "..." }, "revenue": "...", "quantity": 0, "net_profit": "...", "revenue_change_percent": "12.50" }
+  "comparison": { "previous_period": { "start_date": "...", "end_date": "..." }, "revenue": "...", "quantity": 0, "revenue_change_percent": "12.50" }
 }
 ```
 
