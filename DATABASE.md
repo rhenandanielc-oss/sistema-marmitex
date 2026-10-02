@@ -26,9 +26,10 @@ Este documento define tabelas, colunas, constraints, índices e dados iniciais. 
 users 1───* user_sessions
 users 1───* audit_logs
 
-companies 1───* customers
-companies 1───* sales
-customers 1───* sales
+companies 1───* sales      (vendas para empreiteiras)
+customers 1───* sales      (vendas para clientes avulsos)
+
+Cada venda tem exatamente UM comprador: uma empresa OU um cliente.
 
 cost_categories 1───* costs
 ```
@@ -45,7 +46,7 @@ cost_categories 1───* costs
 | name | VARCHAR(120) | NOT NULL |
 | email | VARCHAR(254) | NOT NULL, único em `lower(email)` |
 | password_hash | VARCHAR(255) | NOT NULL (Argon2id) |
-| role | VARCHAR(20) | NOT NULL, `CHECK (role IN ('ADMIN','GERENTE','OPERADOR'))` |
+| role | VARCHAR(20) | NOT NULL DEFAULT 'ADMIN', `CHECK (role IN ('ADMIN'))` — papel único; a coluna existe para extensão futura |
 | is_active | BOOLEAN | NOT NULL DEFAULT true |
 | last_login_at | TIMESTAMPTZ | NULL |
 | version | INTEGER | NOT NULL DEFAULT 1 |
@@ -65,7 +66,9 @@ cost_categories 1───* costs
 
 Índice: `(user_id) WHERE revoked_at IS NULL`.
 
-### 3.3 `companies` (empresas contratantes)
+### 3.3 `companies` (empresas — empreiteiras)
+
+Principais compradoras, com maior volume e faturamento quinzenal ou mensal.
 
 | Coluna | Tipo | Regras |
 |---|---|---|
@@ -76,31 +79,34 @@ cost_categories 1───* costs
 | contact_name | VARCHAR(120) | NULL |
 | phone | VARCHAR(20) | NULL |
 | email | VARCHAR(254) | NULL |
+| billing_cycle | VARCHAR(20) | NOT NULL DEFAULT 'MENSAL', `CHECK (billing_cycle IN ('QUINZENAL','MENSAL'))` |
 | notes | TEXT | NULL |
 | is_active | BOOLEAN | NOT NULL DEFAULT true |
 | version, created_at, updated_at, created_by, updated_by | | |
 
 Índices: `UNIQUE (lower(name))`, `UNIQUE (cnpj) WHERE cnpj IS NOT NULL`, `(is_active)`.
 
-### 3.4 `customers` (clientes)
+`billing_cycle` é informativo (exibição e filtro); o fechamento do período é obtido no Histórico filtrando a empresa e o intervalo (ver `API.md`, 3.9). Contas a receber/controle de pagamento não fazem parte do escopo atual.
 
-Decisão: o cliente pertence a uma empresa contratante (ex.: colaborador ou setor da empresa que recebe a marmita). A venda exige que o cliente pertença à empresa informada.
+### 3.4 `customers` (clientes avulsos)
+
+Entidade **independente** das empresas. São pessoas que compram por conta própria, em menor quantidade e de forma variável (ex.: um trabalhador da mesma obra de uma empreiteira que pede marmitas e paga mensalmente). Não possuem vínculo com `companies`.
 
 | Coluna | Tipo | Regras |
 |---|---|---|
 | id | BIGINT PK | |
-| company_id | BIGINT FK → companies | NOT NULL, `ON DELETE RESTRICT` |
 | name | VARCHAR(150) | NOT NULL, `CHECK (length(trim(name)) >= 2)` |
-| document | VARCHAR(14) | NULL (CPF/CNPJ somente dígitos, opcional) |
 | phone | VARCHAR(20) | NULL |
-| email | VARCHAR(254) | NULL |
+| document | VARCHAR(14) | NULL (CPF somente dígitos, opcional, validado se informado) |
+| location | VARCHAR(150) | NULL — local/obra de entrega (texto livre, ex.: "Obra Rua X") |
+| billing_cycle | VARCHAR(20) | NOT NULL DEFAULT 'MENSAL', `CHECK (billing_cycle IN ('A_VISTA','SEMANAL','QUINZENAL','MENSAL'))` |
 | notes | TEXT | NULL |
 | is_active | BOOLEAN | NOT NULL DEFAULT true |
 | version, created_at, updated_at, created_by, updated_by | | |
 
-Índices: `UNIQUE (company_id, lower(name))`, `(company_id, is_active)`.
+Índices: `(lower(name))`, `(is_active)`, `UNIQUE (document) WHERE document IS NOT NULL`.
 
-Regra: desativar uma empresa **não** desativa automaticamente seus clientes, mas clientes de empresa inativa também não aparecem em novos lançamentos (o filtro de lançamento exige empresa ativa **e** cliente ativo).
+Nomes de clientes **não** são únicos (pode haver dois "João"); a interface exibe telefone e local para diferenciá-los.
 
 ### 3.5 `cost_categories` (categorias de custo)
 
@@ -119,9 +125,10 @@ Regra: `cost_type` não pode ser alterado se a categoria já possuir custos (nã
 | Coluna | Tipo | Regras |
 |---|---|---|
 | id | BIGINT PK | |
-| company_id | BIGINT FK → companies | NOT NULL, `ON DELETE RESTRICT` |
-| customer_id | BIGINT FK → customers | NOT NULL, `ON DELETE RESTRICT` |
-| sale_date | DATE | NOT NULL — definida pelo servidor |
+| buyer_type | VARCHAR(10) | NOT NULL, `CHECK (buyer_type IN ('COMPANY','CUSTOMER'))` |
+| company_id | BIGINT FK → companies | NULL, `ON DELETE RESTRICT` |
+| customer_id | BIGINT FK → customers | NULL, `ON DELETE RESTRICT` |
+| sale_date | DATE | NOT NULL — escolhida pelo ADMIN (padrão: hoje do servidor), nunca futura |
 | unit_price | NUMERIC(12,2) | NOT NULL, `CHECK (unit_price > 0)` |
 | quantity | INTEGER | NOT NULL, `CHECK (quantity > 0)` |
 | subtotal | NUMERIC(14,2) | NOT NULL, `CHECK (subtotal = unit_price * quantity)` |
@@ -130,16 +137,27 @@ Regra: `cost_type` não pode ser alterado se a categoria já possuir custos (nã
 | deleted_by | BIGINT FK → users | NULL |
 | version, created_at, updated_at, created_by, updated_by | | |
 
+Constraint de comprador único:
+
+```sql
+CHECK (
+  (buyer_type = 'COMPANY'  AND company_id  IS NOT NULL AND customer_id IS NULL) OR
+  (buyer_type = 'CUSTOMER' AND customer_id IS NOT NULL AND company_id  IS NULL)
+)
+```
+
 * O `CHECK` de subtotal garante no banco a fórmula `subtotal = unit_price × quantity` (o backend calcula; o banco impede inconsistência).
 * Limites de negócio validados no backend (ver `FINANCIAL-RULES.md`): `unit_price ≤ 9999.99`, `quantity ≤ 10000`.
-* A consistência "cliente pertence à empresa" é validada no serviço. Opcionalmente reforçada por FK composta `(customer_id, company_id) → customers(id, company_id)` (requer `UNIQUE (id, company_id)` em `customers`) — **adotada**.
 
 Índices:
 * `(sale_date) WHERE deleted_at IS NULL`
-* `(company_id, sale_date) WHERE deleted_at IS NULL`
-* `(customer_id, sale_date) WHERE deleted_at IS NULL`
+* `(company_id, sale_date) WHERE deleted_at IS NULL AND company_id IS NOT NULL`
+* `(customer_id, sale_date) WHERE deleted_at IS NULL AND customer_id IS NOT NULL`
+* `(buyer_type, sale_date) WHERE deleted_at IS NULL`
 
-### 3.7 `costs` (custos)
+### 3.7 `costs` (custos do restaurante)
+
+Custos são do restaurante como um todo (não pertencem a uma empresa ou cliente). A atribuição de custos a cada comprador é feita somente no cálculo, por rateio (ver `FINANCIAL-RULES.md`, seção 6).
 
 | Coluna | Tipo | Regras |
 |---|---|---|
@@ -155,7 +173,7 @@ Regra: `cost_type` não pode ser alterado se a categoria já possuir custos (nã
 
 * `cost_type` deve ser igual ao `cost_type` da categoria no momento do lançamento (validado no serviço). Fica gravado no custo para que agregações por tipo não dependam de join e para preservar o histórico.
 * Reforço no banco: FK composta `(category_id, cost_type) → cost_categories(id, cost_type)` com `UNIQUE (id, cost_type)` em `cost_categories` e `ON UPDATE RESTRICT` — **adotada**, combinada com a regra de não alterar o tipo de categoria com custos.
-* `cost_date` não pode estar no futuro em relação ao "hoje" do servidor (validado no serviço).
+* `cost_date` é escolhida pelo ADMIN (padrão: hoje do servidor) e não pode estar no futuro (validado no serviço).
 
 Índices:
 * `(cost_date) WHERE deleted_at IS NULL`
@@ -213,14 +231,21 @@ O primeiro usuário `ADMIN` **não** é criado por migration (não há senha no 
 Todas as consultas usam intervalo **fechado** `[start_date, end_date]` e ignoram registros com `deleted_at IS NOT NULL`.
 
 ```sql
--- Receita e quantidade no período (opcionalmente por empresa)
+-- Receita e quantidade no período (geral: empresas + clientes avulsos)
 SELECT COALESCE(SUM(subtotal), 0) AS revenue,
        COALESCE(SUM(quantity), 0) AS quantity,
        COUNT(*)                   AS sales_count
 FROM sales
 WHERE deleted_at IS NULL
+  AND sale_date BETWEEN :start_date AND :end_date;
+
+-- Receita e quantidade por comprador (base do rateio de custos e do lucro por comprador)
+SELECT buyer_type, COALESCE(company_id, customer_id) AS buyer_id,
+       SUM(subtotal) AS revenue, SUM(quantity) AS quantity, COUNT(*) AS sales_count
+FROM sales
+WHERE deleted_at IS NULL
   AND sale_date BETWEEN :start_date AND :end_date
-  AND (:company_id IS NULL OR company_id = :company_id);
+GROUP BY buyer_type, COALESCE(company_id, customer_id);
 
 -- Custos por tipo no período
 SELECT cost_type, COALESCE(SUM(amount), 0) AS total

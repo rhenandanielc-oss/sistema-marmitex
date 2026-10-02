@@ -133,9 +133,9 @@ sistema-marmitex/
 
 Fluxo de uma requisição de escrita (ex.: criar venda):
 
-1. `routes/sales.py` recebe o JSON, valida com `SaleCreate` e exige a permissão `sales:create`.
-2. `sales_service.create()` abre a transação, carrega empresa e cliente, valida que existem, estão ativos e que o cliente pertence à empresa.
-3. A data oficial é obtida de `clock.today()` (fuso `APP_TIMEZONE`); o subtotal é calculado por `financial_engine.sale_subtotal()`.
+1. `routes/sales.py` recebe o JSON, valida com `SaleCreate` e exige usuário autenticado e ativo (`ADMIN`).
+2. `sales_service.create()` abre a transação e carrega o comprador — **empresa** (empreiteira) **ou** **cliente avulso**, nunca os dois — validando que existe e está ativo.
+3. A data da venda é a informada pelo ADMIN (para lançamentos esquecidos) ou, se omitida, `clock.today()` (fuso `APP_TIMEZONE`); nunca futura. O subtotal é calculado por `financial_engine.sale_subtotal()`.
 4. A venda é inserida e `audit.record(...)` grava o registro de auditoria na mesma transação.
 5. Commit; a resposta é serializada por `SaleRead`.
 
@@ -174,14 +174,10 @@ Nunca usar `float` para dinheiro. Banco: `NUMERIC(12,2)` para valores unitários
 * O frontend guarda o token em memória e `sessionStorage` (some ao fechar a aba) e envia `Authorization: Bearer <token>`.
 * Não se usa cookie, portanto não há superfície de CSRF; o risco de XSS é mitigado por CSP e por não renderizar HTML vindo do usuário.
 
-### D-06 — Autorização por papel → permissões
-Três papéis fixos, mapeados para permissões em código (`core/permissions.py`). Detalhes em `API.md`, seção "Autorização".
+### D-06 — Papel único `ADMIN`
+Há um único papel, `ADMIN`, que lança todas as vendas e todos os custos, mantém os cadastros e consulta histórico, dashboard e auditoria. Pode haver mais de um usuário ADMIN (ex.: dono e sócio), cada um com login próprio para que a auditoria identifique quem fez cada operação.
 
-| Papel | Resumo |
-|---|---|
-| `ADMIN` | tudo, inclusive usuários, auditoria e correções de data |
-| `GERENTE` | cadastros, lançamentos, edição/exclusão de lançamentos, histórico e dashboard |
-| `OPERADOR` | lançar vendas e custos do dia, consultar cadastros ativos e o próprio histórico do dia |
+Implementação: coluna `users.role` restrita a `'ADMIN'` e dependência `require_admin` em `core/permissions.py`, aplicada a todas as rotas protegidas. A coluna e a dependência existem para permitir novos papéis no futuro sem refatoração, mas **nenhum outro papel é implementado agora**. Detalhes em `API.md`, seção 2.
 
 ### D-07 — Exclusão lógica
 Cadastros são **desativados** (`is_active = false`), nunca apagados. Vendas e custos usam `deleted_at` (exclusão lógica) e deixam de entrar em cálculos e listagens, permanecendo para auditoria.
@@ -203,18 +199,19 @@ Os testes de integração usam um PostgreSQL de teste (serviço do Docker Compos
 * Layout: menu lateral com as áreas **Cadastros**, **Lançamentos**, **Histórico** e **Dashboard**; cabeçalho com usuário e "Sair".
 * Rotas:
 
-| Rota | Tela | Permissão mínima |
+| Rota | Tela | Acesso |
 |---|---|---|
 | `/login` | Login | pública |
-| `/cadastros/empresas` | Empresas | `companies:read` |
-| `/cadastros/clientes` | Clientes | `customers:read` |
-| `/cadastros/categorias` | Categorias de custo | `categories:read` |
-| `/lancamentos/vendas` | Lançar/listar vendas do dia | `sales:create` |
-| `/lancamentos/custos` | Lançar/listar custos | `costs:create` |
-| `/historico` | Consulta de vendas e custos | `history:read` |
-| `/dashboard` | Dashboard geral e por empresa (`?empresa=<id>`) | `dashboard:read` |
+| `/cadastros/empresas` | Empresas (empreiteiras) | ADMIN |
+| `/cadastros/clientes` | Clientes avulsos | ADMIN |
+| `/cadastros/categorias` | Tipos/categorias de custo (ex.: Ingredientes, Embalagens) | ADMIN |
+| `/lancamentos/vendas` | Lançar/listar vendas (data escolhida pelo ADMIN, padrão hoje) | ADMIN |
+| `/lancamentos/custos` | Lançar/listar custos do restaurante | ADMIN |
+| `/historico` | Consulta de vendas e custos | ADMIN |
+| `/dashboard` | Dashboard geral, por empresa (`?empresa=<id>`) e por cliente (`?cliente=<id>`) | ADMIN |
 
-* Itens de menu e botões são ocultados conforme as permissões retornadas por `GET /auth/me`; a proteção real é sempre feita pela API.
+* Todas as rotas, exceto `/login`, exigem sessão válida; a proteção real é sempre feita pela API.
+* No lançamento de venda, o ADMIN escolhe primeiro o tipo de comprador (**Empresa** ou **Cliente avulso**) e depois o comprador.
 * Selects de empresa/cliente/categoria em lançamentos carregam **somente registros ativos** (`?active=true`).
 * Feedback: estados de carregamento, mensagens de sucesso (toast), erros de validação por campo (mapeados de `error.details`), confirmação antes de desativar/excluir.
 * React Query: invalidação das listas, histórico e dashboard após qualquer mutação.

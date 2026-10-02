@@ -16,9 +16,9 @@ O Claude Code deve atualizá-lo ao final de cada etapa significativa.
 
 **Última atualização:** 2026-10-02 (Sessão 1).
 
-**Último commit:** `docs: phase 0 architecture documentation` (branch `claude/sistema-marmitex-b2b-j8apnv`).
+**Último commit:** `docs: revise phase 0 with business decisions` (branch `claude/sistema-marmitex-b2b-j8apnv`).
 
-**Próxima ação:** Iniciar a Fase 1: estrutura `backend/` (FastAPI + SQLAlchemy + Alembic), `docker-compose.yml` com PostgreSQL 16, `.env.example`, migrations `0001_initial_schema` e `0002_seed_cost_categories` conforme `DATABASE.md`, usuários/autenticação/permissões conforme `API.md` seções 2 e 3.2–3.3, e CRUD de empresas, clientes e categorias (seções 3.4–3.6) com testes de integração.
+**Próxima ação:** Iniciar a Fase 1: estrutura `backend/` (FastAPI + SQLAlchemy + Alembic), `docker-compose.yml` com PostgreSQL 16, `.env.example`, migrations `0001_initial_schema` e `0002_seed_cost_categories` conforme `DATABASE.md`, usuários/autenticação (papel único ADMIN) conforme `API.md` seções 2 e 3.2–3.3, e CRUD de empresas, clientes avulsos e categorias (seções 3.4–3.6) com testes de integração.
 
 ---
 
@@ -65,13 +65,12 @@ Ver "Decisões técnicas" abaixo.
 * [ ] login
 * [ ] logout
 * [ ] sessões/tokens
-* [ ] papéis
-* [ ] permissões
+* [ ] papel único ADMIN (`require_admin`)
 * [ ] auditoria
 
 ### Cadastros
 
-#### Empresas
+#### Empresas (empreiteiras)
 
 * [ ] criar
 * [ ] editar
@@ -80,7 +79,7 @@ Ver "Decisões técnicas" abaixo.
 * [ ] pesquisar
 * [ ] filtrar
 
-#### Clientes
+#### Clientes avulsos (independentes)
 
 * [ ] criar
 * [ ] editar
@@ -109,11 +108,10 @@ Pendente.
 
 ### Vendas
 
-* [ ] empresa
-* [ ] cliente
+* [ ] comprador único (empresa OU cliente avulso)
 * [ ] preço unitário
 * [ ] quantidade
-* [ ] data do servidor
+* [ ] data escolhida pelo ADMIN (padrão hoje, nunca futura)
 * [ ] subtotal
 * [ ] validações
 * [ ] edição
@@ -163,7 +161,8 @@ Pendente.
 * [ ] custo médio por marmita
 * [ ] divisão por zero
 * [ ] período inclusivo
-* [ ] filtro por empresa
+* [ ] lucro líquido geral (empresas + clientes)
+* [ ] lucro líquido por empresa/cliente (rateio por marmita, maior resto)
 
 ### Fórmulas
 
@@ -191,6 +190,7 @@ Pendente.
 * [ ] somente custos diários
 * [ ] vendas sem custos
 * [ ] custos sem vendas
+* [ ] rateio fecha no centavo (Σ lucros por comprador = lucro geral)
 
 ---
 
@@ -213,11 +213,12 @@ Pendente.
 
 * [ ] resumo financeiro
 * [ ] vendas diárias
-* [ ] vendas por empresa
+* [ ] vendas e lucro por comprador (`/dashboard/by-buyer`)
 * [ ] quantidade diária
 * [ ] custos diários
 * [ ] lucro diário
 * [ ] histórico por empresa
+* [ ] dashboard por cliente avulso
 
 ### Recursos
 
@@ -378,59 +379,40 @@ Pendente.
 
 As decisões arquiteturais completas estão em `ARCHITECTURE.md` seção 5. Abaixo, as decisões que afetam regras de negócio.
 
-### 2026-10-02 — Cliente pertence a uma empresa
+Decisões validadas com o negócio em 2026-10-02 (revisão da Fase 0):
 
-**Problema:** o MASTER-PROMPT cita empresas e clientes sem definir a relação.
-**Opções:** (a) clientes independentes; (b) cliente vinculado a uma empresa.
-**Decisão:** (b) — `customers.company_id` obrigatório; a venda exige que o cliente pertença à empresa (FK composta).
-**Motivo:** modelo B2B: a empresa contrata, o cliente é o colaborador/setor que recebe.
-**Impacto:** seletor de cliente no lançamento é filtrado pela empresa.
+### 2026-10-02 — Empresas e clientes avulsos são entidades independentes
 
-### 2026-10-02 — Custos com filtro de empresa (rateio por marmita)
+**Problema:** relação entre empresas e clientes não definida no MASTER-PROMPT.
+**Decisão (validada):** empresas = empreiteiras (principais compradoras, maior volume, faturamento quinzenal/mensal); clientes = compradores avulsos, sem vínculo com empresas (ex.: trabalhador da mesma obra que paga mensalmente). Cada venda tem **um único comprador**: empresa **ou** cliente (`sales.buyer_type` + `CHECK`).
+**Impacto:** substitui a exigência "venda com empresa e cliente" do MASTER-PROMPT §6/§9; `billing_cycle` nos dois cadastros; dashboard por empresa não lista "clientes da empresa" (não há vínculo) — em vez disso existe dashboard por cliente avulso. Ver `DATABASE.md` 3.3, 3.4, 3.6.
 
-**Problema:** custos não pertencem a empresas, mas o dashboard aceita filtro de empresa.
-**Opções:** (a) ignorar custos no filtro; (b) mostrar custos globais e lucro global; (c) ratear custos proporcionalmente à quantidade de marmitas; (d) ratear pela receita.
-**Decisão:** (c), exibindo também os custos globais. Lucro Líquido oficial continua sendo global; por empresa exibe-se "Lucro estimado (rateio por marmita)".
-**Motivo:** coerente com o indicador "custo médio por marmita"; evita mostrar lucro enganoso.
-**Impacto:** regras R-EMP-1 a R-EMP-6 e fórmulas F-11 a F-13 em `FINANCIAL-RULES.md`. **Pendente de validação pelo negócio.**
+### 2026-10-02 — Lucro líquido geral e por empresa
+
+**Problema:** custos são do restaurante, mas o negócio quer lucro líquido por empresa.
+**Decisão (validada):** lucro líquido geral inclui tudo (empresas + clientes avulsos + todos os custos). Lucro de cada empresa/cliente = receita − custos rateados proporcionalmente à quantidade de marmitas (método do maior resto, fechando no centavo; Σ lucros por comprador = lucro geral).
+**Impacto:** `FINANCIAL-RULES.md` seção 6 (R-RAT-1 a R-RAT-9, F-12 a F-14); endpoint `/dashboard/by-buyer`.
+
+### 2026-10-02 — Categorias de custo administráveis
+
+**Decisão (validada):** aba de cadastro onde o ADMIN cria novos tipos de custo (ex.: Embalagens, Ingredientes), cada um classificado como diário ou fixo.
 
 ### 2026-10-02 — Reconhecimento de custos na data do lançamento
 
-**Problema:** custos fixos mensais (ex.: aluguel) poderiam ser rateados por dia.
-**Decisão:** custo reconhecido integralmente em `cost_date`, sem rateio entre dias (R-CUS-5).
-**Motivo:** fórmula do MASTER-PROMPT (`CUSTOS_TOTAIS = fixos + diários` no período) e simplicidade.
-**Impacto:** visão diária/semanal pode mostrar lucro negativo no dia do lançamento de um custo fixo. **Pendente de validação pelo negócio.**
+**Decisão (validada):** custo reconhecido integralmente em `cost_date`, sem rateio entre dias (R-CUS-5). Lucro negativo em um dia/semana é aceitável; o foco é o lucro líquido do mês com gráficos (período padrão `month`, atalho `last_month`, gráfico de lucro acumulado).
 
-### 2026-10-02 — Datas de lançamento
+### 2026-10-02 — Papel único ADMIN e data escolhida pelo ADMIN
 
-**Decisão:** venda sempre com data do servidor (corrigível só por ADMIN, com auditoria); custo usa hoje por padrão, aceita data passada (GERENTE/ADMIN), nunca futura. Fuso `America/Sao_Paulo` configurável.
+**Decisão (validada):** apenas o papel `ADMIN`, que lança todas as vendas e custos. A data de venda e de custo é escolhida pelo ADMIN (padrão: hoje do servidor, fuso `America/Sao_Paulo`), permitindo lançar o que foi esquecido; nunca futura; toda alteração auditada.
+**Impacto:** substitui "data oficial vem do servidor" (MASTER-PROMPT §9) e a matriz de papéis/permissões; mantém-se `users.role` e `require_admin` para extensão futura. Ver `ARCHITECTURE.md` D-06 e `API.md` seção 2.
 
 ### 2026-10-02 — Períodos pré-definidos
 
-**Decisão:** semana = segunda-feira corrente até hoje; mês = dia 1 até hoje; resolvidos no backend.
+**Decisão:** hoje; semana = segunda-feira corrente até hoje; mês = dia 1 até hoje (padrão); mês anterior = mês fechado; personalizado. Resolvidos no backend.
 
-### 2026-10-02 — Papéis
+### Fora do escopo atual
 
-**Decisão:** ADMIN, GERENTE, OPERADOR com matriz de permissões em `API.md` seção 2.
-
-Formato:
-
-### [DATA] — [DECISÃO]
-
-**Problema:**
-...
-
-**Opções:**
-...
-
-**Decisão:**
-...
-
-**Motivo:**
-...
-
-**Impacto:**
-...
+Contas a receber / controle de pagamentos de empresas e clientes. O fechamento (total a cobrar no período) é obtido pelo Histórico com filtro de comprador e período.
 
 ---
 
@@ -488,7 +470,8 @@ Formato:
 
 # RISCOS
 
-* **cálculos:** decisões de rateio (R-EMP-3) e reconhecimento de custos (R-CUS-5) ainda não validadas pelo negócio — mudanças exigem atualizar `FINANCIAL-RULES.md` e os testes FIN-*.
+* **cálculos:** o rateio por marmita (R-RAT-*) é uma convenção; se o negócio quiser outro critério (ex.: por receita), é preciso atualizar `FINANCIAL-RULES.md` e os testes FIN-*.
+* **datas:** como o ADMIN escolhe a data, lançamentos em data errada são possíveis — mitigado por valor padrão = hoje, bloqueio de data futura e auditoria.
 * **datas:** fuso horário incorreto no servidor geraria vendas no dia errado — mitigado por `APP_TIMEZONE` e teste FIN-20.
 * **concorrência:** edições simultâneas — mitigado por `version` (409).
 * **segurança:** token em `sessionStorage` é exposto em caso de XSS — mitigado por CSP e por não renderizar HTML de usuário.
@@ -507,6 +490,14 @@ Possíveis categorias:
 ---
 
 # ÚLTIMAS ALTERAÇÕES
+
+### 2026-10-02 — revisão com o negócio
+
+* Clientes avulsos independentes das empresas; venda com comprador único.
+* Lucro líquido geral e por empresa/cliente com rateio de custos por marmita.
+* Papel único ADMIN; data de venda/custo escolhida pelo ADMIN.
+* Custos fixos na data do lançamento confirmados; foco no lucro mensal (período `last_month`, gráfico de lucro acumulado).
+* Arquivos: todos os documentos de arquitetura e `PROJECT-STATE.md`.
 
 ### 2026-10-02
 
@@ -565,6 +556,7 @@ Ao iniciar:
 * Executada somente a Fase 0 (Arquitetura), conforme a regra principal de execução.
 * Criados os 6 documentos de arquitetura.
 * Registradas decisões e riscos.
+* Revisão com o negócio aplicada (empresas × clientes avulsos, lucro por empresa, papel único ADMIN, data escolhida pelo ADMIN).
 * Próxima sessão: Fase 1.
 
 ---
